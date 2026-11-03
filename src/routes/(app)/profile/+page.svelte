@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import ScreenHeader from '#lib/components/ScreenHeader.svelte';
 	import { authClient } from '#lib/auth-client.ts';
+	import { clearLocal, pendingCount } from '#lib/local/sync.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -40,8 +41,18 @@
 
 	let signingOut = $state(false);
 	async function signOut() {
+		const pending = await pendingCount();
+		if (
+			pending > 0 &&
+			!confirm(
+				`${pending} change${pending > 1 ? 's' : ''} on this phone haven't synced yet and will be lost if you sign out now. Sign out anyway?`
+			)
+		) {
+			return;
+		}
 		signingOut = true;
 		await authClient.signOut();
+		await clearLocal();
 		navigator.serviceWorker?.controller?.postMessage({ type: 'clear-user-cache' });
 		await invalidateAll();
 		await goto(resolve('/(auth)/sign-in'));

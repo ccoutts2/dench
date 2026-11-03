@@ -48,15 +48,20 @@ async function cacheFirst(request: Request, cacheName: string) {
 	return res;
 }
 
-async function networkFirst(request: Request, cacheName: string, fallback?: string) {
+async function networkFirst(
+	request: Request,
+	cacheName: string,
+	fallback?: string,
+	ignoreSearch = false
+) {
 	const cache = await caches.open(cacheName);
 	try {
 		const res = await fetch(request);
 		// Don't cache redirects (e.g. to /sign-in) as if they were the page.
-		if (res.ok && !res.redirected) cache.put(request, res.clone());
+		if (res.ok && !res.redirected) cache.put(stripSearch(request, ignoreSearch), res.clone());
 		return res;
 	} catch (err) {
-		const hit = await cache.match(request);
+		const hit = await cache.match(request, { ignoreSearch });
 		if (hit) return hit;
 		if (fallback) {
 			const page = await caches.match(fallback);
@@ -104,13 +109,39 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 	if (url.pathname.endsWith('/__data.json')) {
-		event.respondWith(networkFirst(request, PAGES));
+		event.respondWith(networkFirst(request, PAGES, undefined, true));
 	}
 });
 
-// Sent on sign-out so the next person on this device doesn't see cached pages.
+/** SvelteKit data URLs carry a changing query string; cache them under the bare path. */
+function stripSearch(request: Request, strip: boolean) {
+	if (!strip) return request;
+	const url = new URL(request.url);
+	url.search = '';
+	return url.toString();
+}
+
 self.addEventListener('message', (event) => {
+	// Sent on sign-out so the next person on this device doesn't see cached pages.
 	if (event.data?.type === 'clear-user-cache') {
 		event.waitUntil(Promise.all([caches.delete(PAGES), caches.delete(DATA)]));
+	}
+	// Sent by the app shell after sign-in: pre-cache the core screens for offline use.
+	if (event.data?.type === 'warm' && Array.isArray(event.data.urls)) {
+		event.waitUntil(
+			(async () => {
+				const cache = await caches.open(PAGES);
+				await Promise.all(
+					(event.data.urls as string[]).map(async (path) => {
+						try {
+							const res = await fetch(path, { credentials: 'same-origin' });
+							if (res.ok && !res.redirected) await cache.put(path, res);
+						} catch {
+							// offline or signed out: skip
+						}
+					})
+				);
+			})()
+		);
 	}
 });

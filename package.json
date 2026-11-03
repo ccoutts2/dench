@@ -52,6 +52,8 @@
 	"dependencies": {
 		"@prisma/adapter-neon": "^7.10.1",
 		"@prisma/client": "^7.10.1",
-		"better-auth": "^1.7.15"
+		"better-auth": "^1.7.15",
+		"dexie": "^4.4.7",
+		"valibot": "^1.5.0"
 	}
 }
