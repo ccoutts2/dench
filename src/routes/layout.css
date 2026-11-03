@@ -1,1 +1,179 @@
 @import 'tailwindcss';
+
+/* ─── Design tokens · "Gradient glass" ───────────────────────────────────── */
+
+@theme {
+	--color-night: #07070d;
+	--color-night-2: #0d0d17;
+	--color-violet: #7c5cff;
+	--color-cyan: #3ee6ff;
+	--color-magenta: #ff4fd8;
+	--color-ember: #ff8a4c;
+
+	--color-ink: #f4f3fb;
+	--color-ink-2: rgb(244 243 251 / 0.68);
+	--color-ink-3: rgb(244 243 251 / 0.42);
+	--color-edge: rgb(255 255 255 / 0.12);
+	--color-glass: rgb(255 255 255 / 0.06);
+	--color-glass-strong: rgb(255 255 255 / 0.1);
+
+	--font-display: 'Unbounded', ui-sans-serif, system-ui, sans-serif;
+	--font-sans: 'Inter Tight', ui-sans-serif, system-ui, -apple-system, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+	--radius-glass: 1.375rem;
+	--ease-spring: cubic-bezier(0.22, 1.2, 0.36, 1);
+
+	--animate-drift-a: drift-a 26s ease-in-out infinite alternate;
+	--animate-drift-b: drift-b 32s ease-in-out infinite alternate;
+	--animate-drift-c: drift-c 38s ease-in-out infinite alternate;
+
+	@keyframes drift-a {
+		to {
+			transform: translate3d(18vw, 14vh, 0) scale(1.15);
+		}
+	}
+	@keyframes drift-b {
+		to {
+			transform: translate3d(-16vw, -10vh, 0) scale(0.9);
+		}
+	}
+	@keyframes drift-c {
+		to {
+			transform: translate3d(8vw, -18vh, 0) scale(1.2);
+		}
+	}
+}
+
+/* Session hue: the mesh colours shift with the workout type. */
+:root {
+	--mesh-1: var(--color-violet);
+	--mesh-2: var(--color-cyan);
+	--mesh-3: var(--color-magenta);
+	--safe-top: env(safe-area-inset-top, 0px);
+	--safe-bottom: env(safe-area-inset-bottom, 0px);
+	color-scheme: dark;
+}
+:root[data-session='push'] {
+	--mesh-1: var(--color-violet);
+	--mesh-2: var(--color-magenta);
+	--mesh-3: #b45cff;
+}
+:root[data-session='pull'] {
+	--mesh-1: var(--color-cyan);
+	--mesh-2: #3e7bff;
+	--mesh-3: var(--color-violet);
+}
+:root[data-session='legs'] {
+	--mesh-1: var(--color-ember);
+	--mesh-2: #ff4f6d;
+	--mesh-3: #ffc24c;
+}
+
+@layer base {
+	html {
+		background: var(--color-night);
+		-webkit-text-size-adjust: 100%;
+		-webkit-tap-highlight-color: transparent;
+	}
+	body {
+		@apply bg-night font-sans text-ink antialiased;
+		min-height: 100dvh;
+		overscroll-behavior-y: none;
+	}
+	input,
+	button,
+	select,
+	textarea {
+		font: inherit;
+		color: inherit;
+	}
+	button {
+		cursor: pointer;
+	}
+	:focus-visible {
+		outline: 2px solid var(--color-cyan);
+		outline-offset: 2px;
+	}
+}
+
+/* ─── Components ─────────────────────────────────────────────────────────── */
+
+@utility glass {
+	position: relative;
+	background:
+		linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.025) 40%),
+		var(--color-glass);
+	border: 1px solid var(--color-edge);
+	border-radius: var(--radius-glass);
+	backdrop-filter: blur(22px) saturate(160%);
+	-webkit-backdrop-filter: blur(22px) saturate(160%);
+	/* soft top highlight */
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 0.14),
+		0 10px 30px -12px rgb(0 0 0 / 0.6);
+}
+
+@utility glass-strong {
+	background:
+		linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.04) 50%),
+		var(--color-glass-strong);
+}
+
+@utility text-gradient {
+	background: linear-gradient(100deg, var(--color-violet), var(--color-cyan));
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+@utility bg-primary-gradient {
+	background: linear-gradient(120deg, var(--color-violet), var(--color-cyan));
+}
+
+@utility num {
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: -0.01em;
+}
+
+@utility eyebrow {
+	font-size: 0.6875rem;
+	font-weight: 600;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--color-ink-3);
+}
+
+@utility pt-safe {
+	padding-top: max(var(--safe-top), 0.75rem);
+}
+
+@utility pb-safe {
+	padding-bottom: max(var(--safe-bottom), 0.75rem);
+}
+
+@layer components {
+	.btn-primary {
+		@apply inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-5 font-semibold text-night transition bg-primary-gradient active:scale-[0.98] disabled:opacity-50;
+		box-shadow:
+			0 8px 28px -8px rgb(124 92 255 / 0.7),
+			inset 0 1px 0 rgb(255 255 255 / 0.35);
+	}
+	.btn-glass {
+		@apply glass inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-5 font-medium transition active:scale-[0.98] disabled:opacity-50;
+	}
+	.field {
+		@apply glass h-12 w-full rounded-2xl px-4 text-base placeholder:text-ink-3 focus:border-cyan/60 focus:outline-none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}

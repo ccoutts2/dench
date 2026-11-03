@@ -1,0 +1,379 @@
+// Dench · Prisma schema
+// Neon Postgres is the source of truth. Workout-side IDs are generated on the
+// device (UUIDv7) so sets logged offline never clash when they sync.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/lib/server/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Auth (Better Auth) ───────────────────────────────────────────────────────
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+
+  profile         Profile?
+  exercises       Exercise[]
+  folders         Folder[]
+  templates       Template[]
+  workouts        Workout[]
+  personalRecords PersonalRecord[]
+  measurements    Measurement[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+
+enum Units {
+  KG
+  LB
+}
+
+model Profile {
+  userId         String   @id
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  units          Units    @default(KG)
+  defaultRestSec Int      @default(120)
+  bodyweightKg   Decimal? @db.Decimal(5, 2)
+  heightCm       Decimal? @db.Decimal(5, 1)
+  barWeightKg    Decimal  @default(20) @db.Decimal(5, 2)
+  /// Available plate sizes (kg), largest first. Used by the plate calculator.
+  plateSetKg     Decimal[] @default([25, 20, 15, 10, 5, 2.5, 1.25]) @db.Decimal(5, 2)
+  liftingSince   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("profile")
+}
+
+// ─── Exercise library ─────────────────────────────────────────────────────────
+
+enum Equipment {
+  BARBELL
+  DUMBBELL
+  MACHINE
+  CABLE
+  BODYWEIGHT
+  KETTLEBELL
+  EZ_BAR
+  SMITH_MACHINE
+  BAND
+  TRAP_BAR
+  ASSISTED
+  OTHER
+}
+
+enum MuscleGroup {
+  CHEST
+  BACK
+  SHOULDERS
+  BICEPS
+  TRICEPS
+  FOREARMS
+  QUADS
+  HAMSTRINGS
+  GLUTES
+  CALVES
+  ABS
+  TRAPS
+  FULL_BODY
+  CARDIO
+}
+
+/// How a set is measured.
+enum ExerciseKind {
+  WEIGHT_REPS
+  BODYWEIGHT_REPS
+  WEIGHTED_BODYWEIGHT
+  ASSISTED_BODYWEIGHT
+  DURATION
+  DISTANCE_DURATION
+}
+
+/// Global library rows have userId = null; custom exercises belong to a user.
+model Exercise {
+  id               String        @id @default(uuid(7))
+  userId           String?
+  user             User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  equipment        Equipment
+  primaryMuscle    MuscleGroup
+  secondaryMuscles MuscleGroup[]
+  kind             ExerciseKind  @default(WEIGHT_REPS)
+  instructions     String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  templateExercises TemplateExercise[]
+  workoutExercises  WorkoutExercise[]
+  personalRecords   PersonalRecord[]
+
+  @@unique([userId, name])
+  @@index([primaryMuscle])
+  @@map("exercise")
+}
+
+// ─── Plan ─────────────────────────────────────────────────────────────────────
+
+enum SessionType {
+  PUSH
+  PULL
+  LEGS
+  UPPER
+  LOWER
+  FULL
+  OTHER
+}
+
+model Folder {
+  id        String     @id @default(uuid(7))
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  position  Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  templates Template[]
+
+  @@index([userId])
+  @@map("folder")
+}
+
+model Template {
+  id          String             @id @default(uuid(7))
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folderId    String?
+  folder      Folder?            @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  name        String
+  sessionType SessionType        @default(OTHER)
+  notes       String?
+  position    Int                @default(0)
+  lastUsedAt  DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  exercises   TemplateExercise[]
+  workouts    Workout[]
+
+  @@index([userId])
+  @@map("template")
+}
+
+model TemplateExercise {
+  id           String        @id @default(uuid(7))
+  templateId   String
+  template     Template      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  exerciseId   String
+  exercise     Exercise      @relation(fields: [exerciseId], references: [id])
+  position     Int
+  /// Exercises sharing a supersetGroup within a template run as a superset.
+  supersetGroup String?
+  restSec      Int?
+  notes        String?
+  sets         TemplateSet[]
+
+  @@index([templateId])
+  @@map("template_exercise")
+}
+
+enum SetType {
+  NORMAL
+  WARMUP
+  DROP
+  FAILURE
+}
+
+model TemplateSet {
+  id                 String           @id @default(uuid(7))
+  templateExerciseId String
+  templateExercise   TemplateExercise @relation(fields: [templateExerciseId], references: [id], onDelete: Cascade)
+  position           Int
+  type               SetType          @default(NORMAL)
+  targetWeightKg     Decimal?         @db.Decimal(6, 2)
+  targetReps         Int?
+
+  @@index([templateExerciseId])
+  @@map("template_set")
+}
+
+// ─── Log ──────────────────────────────────────────────────────────────────────
+
+model Workout {
+  /// Client-generated UUIDv7.
+  id          String            @id
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId  String?
+  template    Template?         @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  name        String
+  sessionType SessionType       @default(OTHER)
+  notes       String?
+  startedAt   DateTime
+  finishedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  exercises   WorkoutExercise[]
+  personalRecords PersonalRecord[]
+
+  @@index([userId, startedAt])
+  @@map("workout")
+}
+
+model WorkoutExercise {
+  /// Client-generated UUIDv7.
+  id            String       @id
+  workoutId     String
+  workout       Workout      @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exerciseId    String
+  exercise      Exercise     @relation(fields: [exerciseId], references: [id])
+  position      Int
+  supersetGroup String?
+  restSec       Int?
+  notes         String?
+  sets          WorkoutSet[]
+
+  @@index([workoutId])
+  @@index([exerciseId])
+  @@map("workout_exercise")
+}
+
+model WorkoutSet {
+  /// Client-generated UUIDv7.
+  id                String          @id
+  workoutExerciseId String
+  workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+  position          Int
+  type              SetType         @default(NORMAL)
+  weightKg          Decimal?        @db.Decimal(6, 2)
+  reps              Int?
+  rpe               Decimal?        @db.Decimal(3, 1)
+  durationSec       Int?
+  distanceM         Decimal?        @db.Decimal(8, 2)
+  completed         Boolean         @default(false)
+  completedAt       DateTime?
+
+  personalRecords PersonalRecord[]
+
+  @@index([workoutExerciseId])
+  @@map("workout_set")
+}
+
+// ─── Progress ─────────────────────────────────────────────────────────────────
+
+enum RecordType {
+  EST_1RM
+  HEAVIEST_WEIGHT
+  BEST_SET_VOLUME
+  MOST_REPS
+  BEST_SESSION_VOLUME
+}
+
+model PersonalRecord {
+  id         String      @id @default(uuid(7))
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise    @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  workoutId  String
+  workout    Workout     @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  setId      String?
+  set        WorkoutSet? @relation(fields: [setId], references: [id], onDelete: SetNull)
+  type       RecordType
+  value      Decimal     @db.Decimal(10, 2)
+  achievedAt DateTime
+
+  @@index([userId, exerciseId, type])
+  @@map("personal_record")
+}
+
+enum MeasurementKind {
+  BODYWEIGHT
+  BODY_FAT
+  CHEST
+  WAIST
+  HIPS
+  NECK
+  SHOULDERS
+  LEFT_ARM
+  RIGHT_ARM
+  LEFT_THIGH
+  RIGHT_THIGH
+  LEFT_CALF
+  RIGHT_CALF
+}
+
+model Measurement {
+  /// Client-generated UUIDv7.
+  id         String          @id
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind       MeasurementKind
+  /// kg for bodyweight, % for body fat, cm for everything else.
+  value      Decimal         @db.Decimal(6, 2)
+  measuredAt DateTime
+  createdAt  DateTime        @default(now())
+
+  @@index([userId, kind, measuredAt])
+  @@map("measurement")
+}
