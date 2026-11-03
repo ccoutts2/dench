@@ -225,7 +225,7 @@ model TemplateExercise {
   templateId   String
   template     Template      @relation(fields: [templateId], references: [id], onDelete: Cascade)
   exerciseId   String
-  exercise     Exercise      @relation(fields: [exerciseId], references: [id])
+  exercise     Exercise      @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
   position     Int
   /// Exercises sharing a supersetGroup within a template run as a superset.
   supersetGroup String?
@@ -286,7 +286,7 @@ model WorkoutExercise {
   workoutId     String
   workout       Workout      @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   exerciseId    String
-  exercise      Exercise     @relation(fields: [exerciseId], references: [id])
+  exercise      Exercise     @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
   position      Int
   supersetGroup String?
   restSec       Int?
