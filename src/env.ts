@@ -11,7 +11,18 @@ export const variables = defineEnvVars({
 	},
 	BETTER_AUTH_URL: {
 		description: 'Public origin of the app, e.g. https://dench.vercel.app',
-		schema: optional
+		schema: (value) => {
+			if (!value) return undefined;
+			// Accept a bare host like "dench.vercel.app" and assume https.
+			const withProtocol = /^https?:\/\//.test(value) ? value : `https://${value}`;
+			try {
+				return new URL(withProtocol).origin;
+			} catch {
+				throw new Error(
+					`BETTER_AUTH_URL must be a URL like https://dench.vercel.app (got "${value}")`
+				);
+			}
+		}
 	},
 	GOOGLE_CLIENT_ID: { description: 'Google OAuth client id (optional).', schema: optional },
 	GOOGLE_CLIENT_SECRET: { description: 'Google OAuth client secret (optional).', schema: optional },
