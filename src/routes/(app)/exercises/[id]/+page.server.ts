@@ -8,7 +8,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const userId = locals.user!.id;
 	const exercise = await db.exercise.findFirst({
 		where: { id: params.id, OR: [{ userId: null }, { userId }] },
-		select: { id: true, name: true, primaryMuscle: true, equipment: true, userId: true }
+		select: {
+			id: true,
+			name: true,
+			primaryMuscle: true,
+			secondaryMuscles: true,
+			equipment: true,
+			userId: true
+		}
 	});
 	if (!exercise) error(404, 'Exercise not found');
 

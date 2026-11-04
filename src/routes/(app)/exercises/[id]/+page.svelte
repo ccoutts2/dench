@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import LineChart from '#lib/components/LineChart.svelte';
+	import MuscleMap from '#lib/components/MuscleMap.svelte';
+	import type { MuscleLoad } from '#lib/muscles.ts';
 	import { units } from '#lib/units.svelte.ts';
 	import { label } from '#lib/types.ts';
 	import type { PageProps } from './$types';
@@ -70,6 +72,14 @@
 		return list.map((s) => `${units.show(s.weightKg) ?? 0}×${s.reps ?? 0}`).join(', ');
 	}
 
+	/** Primary = 1, secondary = 0.5: the map shades them differently. */
+	const exerciseLoad = $derived.by(() => {
+		const load: Record<string, number> = {};
+		for (const m of data.exercise.secondaryMuscles) load[m] = 0.5;
+		load[data.exercise.primaryMuscle] = 1;
+		return load as MuscleLoad;
+	});
+
 	const recent = $derived([...sessions].reverse().slice(0, 12));
 	const prSet = $derived(new Set(data.prWorkouts));
 </script>
@@ -89,6 +99,10 @@
 		{data.exercise.name}
 	</h1>
 </header>
+
+<section class="glass mb-4 p-4">
+	<MuscleMap load={exerciseLoad} exercise />
+</section>
 
 {#if sessions.length === 0}
 	<div class="glass flex flex-col items-center gap-2 px-6 py-12 text-center">

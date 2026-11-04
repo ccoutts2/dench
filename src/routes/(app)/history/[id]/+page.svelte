@@ -10,6 +10,9 @@
 	import { RECORD_PRIORITY, type RecordType } from '#lib/records.ts';
 	import { hueFor, volumeOf, type WorkoutDTO } from '#lib/types.ts';
 	import { uuidv7 } from '#lib/uuid.ts';
+	import MuscleMap from '#lib/components/MuscleMap.svelte';
+	import { localMuscleLoad } from '#lib/local/muscles.ts';
+	import { muscleLoad, type MuscleLoad } from '#lib/muscles.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -41,6 +44,30 @@
 
 	// A queued edit on this phone is newer than the server copy.
 	const view = $derived<View | null>(localCopy?.pending ? localCopy : (data.workout ?? localCopy));
+
+	// Server copy carries each exercise's muscles; a phone-only copy uses the cached library.
+	let localLoad = $state<MuscleLoad>({});
+	const load = $derived.by((): MuscleLoad => {
+		const m = data.workout?.muscles;
+		if (!view || view !== data.workout || !m) return localLoad;
+		return muscleLoad(
+			view.exercises.flatMap((e) =>
+				m[e.exerciseId]
+					? [
+							{
+								primaryMuscle: m[e.exerciseId].primary,
+								secondaryMuscles: m[e.exerciseId].secondary,
+								sets: e.sets
+							}
+						]
+					: []
+			)
+		);
+	});
+	$effect(() => {
+		if (view && view !== data.workout)
+			void localMuscleLoad(view.exercises).then((l) => (localLoad = l));
+	});
 
 	$effect(() => {
 		const hue = view ? hueFor(view.sessionType) : null;
@@ -312,6 +339,11 @@
 				</section>
 			{/each}
 		</div>
+
+		<section class="glass mt-3 p-4">
+			<p class="mb-3 eyebrow">Muscles worked</p>
+			<MuscleMap {load} />
+		</section>
 
 		<button class="btn-glass mt-6 w-full" onclick={saveAsTemplate} disabled={templating}
 			>{templating ? 'Creating template…' : 'Save as template'}</button

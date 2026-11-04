@@ -73,6 +73,8 @@ export type LibraryExercise = {
 	equipment: Equipment;
 	primaryMuscle: Muscle;
 	kind: ExerciseKind;
+	/** Absent in caches written before the muscle map existed. */
+	secondaryMuscles?: Muscle[];
 	/** true for the user's own custom exercises */
 	custom: boolean;
 };

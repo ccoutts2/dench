@@ -21,6 +21,7 @@ export async function libraryFor(userId: string): Promise<LibraryExercise[]> {
 			name: true,
 			equipment: true,
 			primaryMuscle: true,
+			secondaryMuscles: true,
 			kind: true,
 			userId: true
 		},

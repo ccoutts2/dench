@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				exercises: {
 					orderBy: { position: 'asc' },
 					include: {
-						exercise: { select: { name: true } },
+						exercise: { select: { name: true, primaryMuscle: true, secondaryMuscles: true } },
 						sets: { orderBy: { position: 'asc' } }
 					}
 				}
@@ -49,6 +49,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			exercises: t.exercises.map((e) => ({
 				exerciseId: e.exerciseId,
 				name: e.exercise.name,
+				primaryMuscle: e.exercise.primaryMuscle,
+				secondaryMuscles: e.exercise.secondaryMuscles,
 				restSec: e.restSec,
 				notes: e.notes,
 				supersetGroup: e.supersetGroup,

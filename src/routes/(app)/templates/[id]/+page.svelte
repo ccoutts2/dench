@@ -3,14 +3,21 @@
 	import { resolve } from '$app/paths';
 	import ExercisePicker from '#lib/components/ExercisePicker.svelte';
 	import { ask } from '#lib/confirm.svelte.ts';
-	import { SESSION_TYPES, hueFor, label, type TemplateDTO } from '#lib/types.ts';
+	import { SESSION_TYPES, hueFor, label, type Muscle, type TemplateDTO } from '#lib/types.ts';
+	import MuscleMap from '#lib/components/MuscleMap.svelte';
+	import { muscleLoad } from '#lib/muscles.ts';
 	import { uuidv7 } from '#lib/uuid.ts';
 	import { units } from '#lib/units.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	type Row = TemplateDTO['exercises'][number] & { key: string; name: string };
+	type Row = TemplateDTO['exercises'][number] & {
+		key: string;
+		name: string;
+		primaryMuscle: Muscle;
+		secondaryMuscles?: Muscle[];
+	};
 
 	// Editable copy of the template; the page is keyed by id so this runs per template.
 	// svelte-ignore state_referenced_locally
@@ -315,6 +322,13 @@
 
 <button class="btn-glass mt-4 w-full" onclick={() => (pickerOpen = true)}>+ Add exercises</button>
 
+{#if rows.length}
+	<section class="glass mt-4 p-4">
+		<p class="mb-3 eyebrow">Muscles this template hits</p>
+		<MuscleMap load={muscleLoad(rows)} />
+	</section>
+{/if}
+
 {#if t}
 	<button class="mt-8 w-full py-3 text-sm text-ember" onclick={remove}>Delete template</button>
 {/if}
@@ -327,6 +341,8 @@
 				key: uuidv7(),
 				exerciseId: ex.id,
 				name: ex.name,
+				primaryMuscle: ex.primaryMuscle,
+				secondaryMuscles: ex.secondaryMuscles ?? [],
 				restSec: null,
 				notes: null,
 				supersetGroup: null,

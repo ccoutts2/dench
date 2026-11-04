@@ -2,6 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Sheet from '#lib/components/Sheet.svelte';
+	import MuscleMap from '#lib/components/MuscleMap.svelte';
+	import { muscleLoad } from '#lib/muscles.ts';
 	import { ask } from '#lib/confirm.svelte.ts';
 	import { live } from '#lib/local/live.svelte.ts';
 	import { hueFor, label } from '#lib/types.ts';
@@ -223,6 +225,8 @@
 				</li>
 			{/each}
 		</ul>
+		<p class="mt-5 mb-3 eyebrow">Muscles this session hits</p>
+		<MuscleMap load={muscleLoad(preview.exercises)} />
 	{/if}
 	{#snippet footer()}
 		{#if preview}

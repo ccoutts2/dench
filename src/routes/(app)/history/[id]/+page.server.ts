@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			exercises: {
 				orderBy: { position: 'asc' },
 				include: {
-					exercise: { select: { name: true } },
+					exercise: { select: { name: true, primaryMuscle: true, secondaryMuscles: true } },
 					sets: { orderBy: { position: 'asc' } }
 				}
 			},
@@ -47,6 +47,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		workout: {
 			...dto,
 			exerciseNames: Object.fromEntries(w.exercises.map((e) => [e.exerciseId, e.exercise.name])),
+			muscles: Object.fromEntries(
+				w.exercises.map((e) => [
+					e.exerciseId,
+					{ primary: e.exercise.primaryMuscle, secondary: e.exercise.secondaryMuscles }
+				])
+			),
 			records: w.personalRecords.map((r) => ({
 				exerciseId: r.exerciseId,
 				setId: r.setId,

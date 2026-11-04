@@ -7,14 +7,20 @@
 	import { hueFor, volumeOf } from '#lib/types.ts';
 	import { describeRecord, headline } from '#lib/records.ts';
 	import { units } from '#lib/units.svelte.ts';
+	import MuscleMap from '#lib/components/MuscleMap.svelte';
+	import { localMuscleLoad } from '#lib/local/muscles.ts';
+	import type { MuscleLoad } from '#lib/muscles.ts';
 
 	let workout = $state<LocalWorkout | null>(null);
 	let missing = $state(false);
+	let muscles = $state<MuscleLoad>({});
 
 	async function load() {
 		const w = await db.workouts.get(page.params.id!);
-		if (w) workout = w;
-		else missing = true;
+		if (w) {
+			workout = w;
+			muscles = await localMuscleLoad(w.exercises);
+		} else missing = true;
 	}
 
 	onMount(() => {
@@ -132,6 +138,11 @@
 				<span class="shrink-0 num text-sm text-ink-2">{bestSet(ex.sets)}</span>
 			</div>
 		{/each}
+	</section>
+
+	<section class="glass mb-4 p-4">
+		<p class="mb-3 eyebrow">Muscles worked</p>
+		<MuscleMap load={muscles} />
 	</section>
 
 	<p class="mb-6 flex items-center gap-2 px-1 text-xs text-ink-3">
