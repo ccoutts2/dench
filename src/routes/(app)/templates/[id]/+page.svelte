@@ -2,6 +2,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import ExercisePicker from '#lib/components/ExercisePicker.svelte';
+	import { ask } from '#lib/confirm.svelte.ts';
 	import { SESSION_TYPES, hueFor, label, type TemplateDTO } from '#lib/types.ts';
 	import { uuidv7 } from '#lib/uuid.ts';
 	import type { PageProps } from './$types';
@@ -87,7 +88,16 @@
 	}
 
 	async function remove() {
-		if (!t || !confirm(`Delete “${t.name}”? Past workouts stay in your history.`)) return;
+		if (
+			!t ||
+			!(await ask({
+				title: `Delete “${t.name}”?`,
+				message: 'Past workouts from this template stay in your history.',
+				confirmLabel: 'Delete',
+				danger: true
+			}))
+		)
+			return;
 		const res = await fetch(`/api/templates/${t.id}`, { method: 'DELETE' }).catch(() => null);
 		if (!res?.ok) {
 			error = 'Could not delete. Check your connection.';
@@ -120,13 +130,13 @@
 />
 
 <div class="mb-4 grid grid-cols-2 gap-3">
-	<label class="flex flex-col gap-1.5">
+	<label class="flex min-w-0 flex-col gap-1.5">
 		<span class="eyebrow">Session</span>
 		<select class="field appearance-none" bind:value={sessionType}>
 			{#each SESSION_TYPES as s (s)}<option value={s}>{label(s)}</option>{/each}
 		</select>
 	</label>
-	<label class="flex flex-col gap-1.5">
+	<label class="flex min-w-0 flex-col gap-1.5">
 		<span class="eyebrow">Folder</span>
 		<select class="field appearance-none" bind:value={folderChoice}>
 			<option value="">None</option>
@@ -147,7 +157,7 @@
 	{#each rows as row, i (row.key)}
 		<li class="glass p-4">
 			<div class="mb-3 flex items-start justify-between gap-2">
-				<h3 class="min-w-0 text-gradient font-semibold">{row.name}</h3>
+				<h3 class="min-w-0 text-gradient font-semibold break-words">{row.name}</h3>
 				<div class="flex shrink-0 gap-1 text-ink-2">
 					<button
 						class="grid size-8 place-items-center rounded-lg bg-white/5 disabled:opacity-30"
@@ -169,14 +179,16 @@
 				</div>
 			</div>
 
-			<div class="grid grid-cols-[2rem_1fr_1fr_2rem] items-center gap-2 text-center">
+			<div
+				class="grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-center gap-2 text-center"
+			>
 				<span class="eyebrow">Set</span><span class="eyebrow">Kg</span><span class="eyebrow"
 					>Reps</span
 				><span></span>
 				{#each row.sets as set, j (j)}
 					<span class="num text-sm text-ink-2">{j + 1}</span>
 					<input
-						class="h-10 rounded-xl bg-white/[0.06] text-center num focus:bg-white/10 focus:outline-none"
+						class="h-10 w-full min-w-0 rounded-xl bg-white/[0.06] text-center num focus:bg-white/10 focus:outline-none"
 						inputmode="decimal"
 						placeholder="—"
 						aria-label="Target kg, set {j + 1}"
@@ -184,7 +196,7 @@
 						onchange={(e) => (set.targetWeightKg = num(e.currentTarget.value))}
 					/>
 					<input
-						class="h-10 rounded-xl bg-white/[0.06] text-center num focus:bg-white/10 focus:outline-none"
+						class="h-10 w-full min-w-0 rounded-xl bg-white/[0.06] text-center num focus:bg-white/10 focus:outline-none"
 						inputmode="numeric"
 						placeholder="—"
 						aria-label="Target reps, set {j + 1}"
@@ -192,13 +204,13 @@
 						onchange={(e) => (set.targetReps = num(e.currentTarget.value))}
 					/>
 					<button
-						class="text-ink-3"
+						class="grid h-10 place-items-center text-lg text-ink-3"
 						aria-label="Remove set {j + 1}"
 						onclick={() => row.sets.splice(j, 1)}>−</button
 					>
 				{/each}
 			</div>
-			<div class="mt-3 flex items-center justify-between gap-3">
+			<div class="mt-3 flex flex-wrap items-center justify-between gap-3">
 				<button
 					class="text-sm font-semibold text-cyan"
 					onclick={() =>

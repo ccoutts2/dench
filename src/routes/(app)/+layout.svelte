@@ -5,6 +5,7 @@
 	import { page } from '$app/state';
 	import TabBar from '#lib/components/TabBar.svelte';
 	import RestTimer from '#lib/components/RestTimer.svelte';
+	import ConfirmSheet from '#lib/components/ConfirmSheet.svelte';
 	import { live } from '#lib/local/live.svelte.ts';
 	import { startSync } from '#lib/local/sync.ts';
 	import { formatDuration } from '#lib/types.ts';
@@ -14,7 +15,9 @@
 
 	let now = $state(Date.now());
 	const onWorkout = $derived(page.url.pathname.startsWith('/workout'));
-	const showBar = $derived(!!live.workout && !onWorkout);
+	/** Full-screen editors bring their own navigation (Cancel / Save / Finish). */
+	const fullScreen = $derived(onWorkout || page.url.pathname.startsWith('/templates/'));
+	const showBar = $derived(!!live.workout && !fullScreen);
 
 	onMount(() => {
 		startSync();
@@ -39,7 +42,7 @@
 </script>
 
 <main
-	class={['mx-auto min-h-dvh max-w-md px-4', onWorkout ? 'pb-28' : showBar ? 'pb-48' : 'pb-32']}
+	class={['mx-auto min-h-dvh max-w-md px-4', fullScreen ? 'pb-28' : showBar ? 'pb-48' : 'pb-32']}
 >
 	{@render children()}
 </main>
@@ -69,9 +72,11 @@
 	</a>
 {/if}
 
-<!-- Always mounted so the chime fires on any tab; the pill shows on the workout screen. -->
-<RestTimer showPill={onWorkout} />
+<!-- Always mounted so the chime fires on any tab. -->
+<RestTimer />
 
-{#if !onWorkout}
+{#if !fullScreen}
 	<TabBar />
 {/if}
+
+<ConfirmSheet />

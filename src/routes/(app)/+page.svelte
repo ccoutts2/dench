@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Sheet from '#lib/components/Sheet.svelte';
+	import { ask } from '#lib/confirm.svelte.ts';
 	import { live } from '#lib/local/live.svelte.ts';
 	import { formatVolume, hueFor, label } from '#lib/types.ts';
 	import type { PageProps } from './$types';
@@ -62,7 +63,13 @@
 
 	async function canReplaceLive() {
 		return (
-			!live.workout || confirm('You have a workout in progress. Discard it and start a new one?')
+			!live.workout ||
+			(await ask({
+				title: 'Workout in progress',
+				message: `Discard “${live.workout.name}” and start a new one?`,
+				confirmLabel: 'Discard',
+				danger: true
+			}))
 		);
 	}
 

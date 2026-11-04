@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
 	import ScreenHeader from '#lib/components/ScreenHeader.svelte';
+	import { ask } from '#lib/confirm.svelte.ts';
 	import { db } from '#lib/local/db.ts';
-	import { onSyncChange } from '#lib/local/sync.ts';
+	import { deleteWorkout, onSyncChange, pendingDeletes } from '#lib/local/sync.ts';
 	import { formatVolume, volumeOf } from '#lib/types.ts';
 	import type { PageProps } from './$types';
 
@@ -10,11 +12,16 @@
 
 	type Row = (typeof data.workouts)[number] & { pending?: boolean };
 
-	/** Finished on this phone but not on the server yet. */
+	/** Workouts held on this phone (some not on the server yet). */
 	let pending = $state<Row[]>([]);
+	/** Deleted here, delete not yet on the server: hide them. */
+	let deleted = $state(new Set<string>());
 
 	async function loadPending() {
-		const local = await db.workouts.where('synced').equals(0).toArray();
+		deleted = await pendingDeletes();
+		// All local copies, not just unsynced ones: if a sync lands after the server
+		// list loaded, the workout would otherwise vanish from both.
+		const local = await db.workouts.toArray();
 		pending = local.map((w) => ({
 			id: w.id,
 			name: w.name,
@@ -26,21 +33,37 @@
 				name: w.exerciseNames[e.exerciseId] ?? 'Exercise',
 				sets: e.sets.length
 			})),
-			pending: true
+			pending: w.synced === 0
 		}));
 	}
 
 	onMount(() => {
 		void loadPending();
-		return onSyncChange(() => void loadPending());
+		return onSyncChange((changed) => {
+			void loadPending();
+			if (changed) void invalidateAll();
+		});
 	});
 
 	const rows = $derived.by(() => {
 		const serverIds = new Set(data.workouts.map((w) => w.id));
-		return [...pending.filter((p) => !serverIds.has(p.id)), ...data.workouts].sort((a, b) =>
-			b.startedAt.localeCompare(a.startedAt)
-		);
+		return [...pending.filter((p) => !serverIds.has(p.id)), ...data.workouts]
+			.filter((w) => !deleted.has(w.id))
+			.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 	});
+
+	async function remove(w: Row) {
+		const ok = await ask({
+			title: `Delete “${w.name}”?`,
+			message: 'This removes the workout and its sets from your history for good.',
+			confirmLabel: 'Delete',
+			danger: true
+		});
+		if (!ok) return;
+		deleted = new Set([...deleted, w.id]);
+		await deleteWorkout(w.id);
+		await invalidateAll();
+	}
 
 	const groups = $derived.by(() => {
 		const out: { month: string; items: Row[] }[] = [];
@@ -90,6 +113,13 @@
 							<li class="truncate"><span class="num text-ink-3">{e.sets} ×</span> {e.name}</li>
 						{/each}
 					</ul>
+					<div class="mt-3 flex justify-end border-t border-white/[0.07] pt-3">
+						<button
+							class="text-xs font-semibold text-ember"
+							aria-label="Delete {w.name}"
+							onclick={() => remove(w)}>Delete</button
+						>
+					</div>
 				</li>
 			{/each}
 		</ul>

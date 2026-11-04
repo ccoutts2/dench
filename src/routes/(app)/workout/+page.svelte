@@ -7,6 +7,7 @@
 	import { live } from '#lib/local/live.svelte.ts';
 	import type { LiveExercise } from '#lib/local/db.ts';
 	import { unlockAudio } from '#lib/chime.ts';
+	import { ask } from '#lib/confirm.svelte.ts';
 	import { SESSION_TYPES, formatDuration, hueFor, label } from '#lib/types.ts';
 
 	let now = $state(Date.now());
@@ -19,6 +20,8 @@
 
 	const w = $derived(live.workout);
 	const elapsed = $derived(w ? now - new Date(w.startedAt).getTime() : 0);
+	const restLeft = $derived(w?.rest ? Math.max(0, w.rest.endsAt - now) : 0);
+	const restProgress = $derived(w?.rest ? restLeft / (w.rest.totalSec * 1000) : 0);
 	const unticked = $derived(
 		w?.exercises.reduce((n, e) => n + e.sets.filter((s) => !s.completedAt).length, 0) ?? 0
 	);
@@ -42,7 +45,7 @@
 	});
 
 	onMount(() => {
-		const id = setInterval(() => (now = Date.now()), 1000);
+		const id = setInterval(() => (now = Date.now()), 250);
 
 		// Keep the screen on mid-set (Safari 18.4+). The lock drops when the app is
 		// backgrounded, so take it again on return.
@@ -104,7 +107,15 @@
 	}
 
 	async function discard() {
-		if (!confirm('Discard this workout? Nothing will be saved.')) return;
+		finishOpen = false;
+		const ok = await ask({
+			title: 'Discard workout?',
+			message: 'Nothing from this session will be saved.',
+			confirmLabel: 'Discard',
+			danger: true
+		});
+		if (!ok) return;
+		finishing = true; // stops the "no workout" redirect racing this one
 		await live.discard();
 		await goto(resolve('/(app)'), { replaceState: true });
 	}
@@ -116,7 +127,23 @@
 	<header class="sticky top-0 z-20 -mx-4 mb-4 bg-night/40 px-4 pt-safe pb-3 backdrop-blur-xl">
 		<div class="flex items-center justify-between gap-3">
 			<a class="text-sm text-ink-2" href={resolve('/(app)')} aria-label="Minimise workout">⌄</a>
-			<p class="num text-lg font-bold">{formatDuration(elapsed)}</p>
+			{#if w.rest}
+				<!-- Rest countdown sits in the header so it never covers a button. -->
+				<button
+					class="glass flex items-center gap-2 rounded-full py-1 pr-3 pl-1 glass-strong"
+					aria-label="Expand rest timer"
+					onclick={() => (live.restExpanded = true)}
+				>
+					<span
+						class="size-7 rounded-full"
+						style="background: conic-gradient(from -90deg, var(--color-violet), var(--color-cyan) {restProgress *
+							360}deg, rgb(255 255 255 / 0.1) 0); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));"
+					></span>
+					<span class="num font-bold text-cyan">{formatDuration(restLeft + 999)}</span>
+				</button>
+			{:else}
+				<p class="num text-lg font-bold">{formatDuration(elapsed)}</p>
+			{/if}
 			<button class="btn-primary h-9 rounded-xl px-4 text-sm" onclick={() => (finishOpen = true)}
 				>Finish</button
 			>
@@ -151,7 +178,7 @@
 				</div>
 
 				<div
-					class="grid grid-cols-[2rem_1fr_4.25rem_3.5rem_2.75rem] items-center gap-x-2 gap-y-2 text-center"
+					class="grid grid-cols-[2rem_minmax(0,1fr)_4.25rem_3.5rem_2.75rem] items-center gap-x-2 gap-y-2 text-center"
 				>
 					<span class="eyebrow">Set</span>
 					<span class="eyebrow">Previous</span>
@@ -173,7 +200,7 @@
 						<span class="truncate num text-xs text-ink-3">{prevText(ex, j)}</span>
 						<input
 							class={[
-								'h-10 w-full rounded-xl text-center num focus:outline-none',
+								'h-10 w-full min-w-0 rounded-xl text-center num focus:outline-none',
 								done ? 'bg-transparent font-bold' : 'bg-white/[0.06] focus:bg-white/10'
 							]}
 							inputmode="decimal"
@@ -184,7 +211,7 @@
 						/>
 						<input
 							class={[
-								'h-10 w-full rounded-xl text-center num focus:outline-none',
+								'h-10 w-full min-w-0 rounded-xl text-center num focus:outline-none',
 								done ? 'bg-transparent font-bold' : 'bg-white/[0.06] focus:bg-white/10'
 							]}
 							inputmode="numeric"
@@ -283,6 +310,7 @@
 					>Finish</button
 				>
 			</div>
+			<button class="mb-1 w-full py-3 text-sm text-ember" onclick={discard}>Discard workout</button>
 		{/snippet}
 	</Sheet>
 {/if}

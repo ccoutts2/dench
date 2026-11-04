@@ -77,8 +77,11 @@
 		-webkit-tap-highlight-color: transparent;
 	}
 	body {
-		@apply bg-night font-sans text-ink antialiased;
+		@apply font-sans text-ink antialiased;
+		/* No body background: html paints the night colour, and a body background
+		   would cover the fixed mesh layer behind the page. */
 		min-height: 100dvh;
+		overflow-x: clip;
 		overscroll-behavior-y: none;
 	}
 	input,

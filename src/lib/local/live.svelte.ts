@@ -31,6 +31,8 @@ const blankSet = (): LiveSet => ({
 class LiveSession {
 	workout = $state<LiveWorkout | null>(null);
 	loaded = $state(false);
+	/** Full-screen rest ring open (UI only, not saved). */
+	restExpanded = $state(false);
 	/** Last logged sets per exercise, for the "previous" column and placeholders. */
 	previous = $state<Record<string, PreviousSet[]>>({});
 

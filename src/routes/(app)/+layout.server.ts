@@ -1,8 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 
-export const load: LayoutServerLoad = ({ locals, url }) => {
-	// hooks.server.ts already guards these routes; this narrows the type.
-	if (!locals.user) redirect(303, `/sign-in?next=${encodeURIComponent(url.pathname)}`);
+// Don't read `url` here: that would re-run this load on every navigation, so
+// moving between screens offline (e.g. finishing a workout) would need the server.
+// hooks.server.ts already redirects signed-out visitors with ?next=.
+export const load: LayoutServerLoad = ({ locals }) => {
+	if (!locals.user) redirect(303, '/sign-in');
 	return { user: { id: locals.user.id, name: locals.user.name, email: locals.user.email } };
 };
