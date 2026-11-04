@@ -3,6 +3,7 @@ import { db } from '#lib/server/db.ts';
 import { libraryFor, previousFor } from '#lib/server/library.ts';
 import { bestsFor } from '#lib/server/records.ts';
 import type { Settings } from '#lib/types.ts';
+import { DEFAULT_PLATES_KG } from '#lib/plates.ts';
 import type { RequestHandler } from './$types';
 
 /** Everything the phone caches in IndexedDB so logging works with no signal. */
@@ -17,7 +18,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const settings: Settings = {
 		defaultRestSec: profile?.defaultRestSec ?? 120,
 		units: profile?.units ?? 'KG',
-		barWeightKg: profile?.barWeightKg.toNumber() ?? 20
+		barWeightKg: profile?.barWeightKg.toNumber() ?? 20,
+		plateSetKg: profile?.plateSetKg.map((p) => p.toNumber()) ?? DEFAULT_PLATES_KG
 	};
 	return json(
 		{ userId, exercises, previous, bests, settings },

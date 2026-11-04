@@ -8,6 +8,7 @@ const weight = v.nullable(v.pipe(v.number(), v.minValue(0), v.maxValue(2000)));
 const reps = v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(1000)));
 const restSec = v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(3600)));
 const isoDate = v.pipe(v.string(), v.isoTimestamp());
+const supersetGroup = v.optional(v.nullable(v.pipe(v.string(), v.maxLength(40))), null);
 
 export const ExerciseInput = v.object({
 	id: uuid,
@@ -31,6 +32,7 @@ export const TemplateInput = v.object({
 				exerciseId: v.string(),
 				restSec,
 				notes,
+				supersetGroup,
 				sets: v.pipe(
 					v.array(
 						v.object({
@@ -62,6 +64,7 @@ export const WorkoutInput = v.object({
 				exerciseId: v.string(),
 				restSec,
 				notes,
+				supersetGroup,
 				sets: v.pipe(
 					v.array(
 						v.object({

@@ -4,11 +4,12 @@
 	import { resolve } from '$app/paths';
 	import ExercisePicker from '#lib/components/ExercisePicker.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
+	import PlateSheet from '#lib/components/PlateSheet.svelte';
 	import { live } from '#lib/local/live.svelte.ts';
 	import type { LiveExercise } from '#lib/local/db.ts';
 	import { unlockAudio } from '#lib/chime.ts';
 	import { ask } from '#lib/confirm.svelte.ts';
-	import { SESSION_TYPES, formatDuration, hueFor, label } from '#lib/types.ts';
+	import { SESSION_TYPES, SET_TYPES, formatDuration, hueFor, label } from '#lib/types.ts';
 	import { units } from '#lib/units.svelte.ts';
 
 	let now = $state(Date.now());
@@ -16,7 +17,12 @@
 	let menuFor = $state<number | null>(null);
 	let menuOpen = $state(false);
 	let finishOpen = $state(false);
-	let deleting = $state<string | null>(null);
+	/** Set whose type menu is open. */
+	let setMenu = $state<{ i: number; j: number } | null>(null);
+	let setMenuOpen = $state(false);
+	let platesOpen = $state(false);
+	let platesKg = $state<number | null>(null);
+	let noteDraft = $state('');
 	let finishing = $state(false);
 
 	const w = $derived(live.workout);
@@ -69,10 +75,45 @@
 		};
 	});
 
-	/** "1, 2, 3" for working sets, "W" for warm-ups. */
+	/** "1, 2, 3" for working sets; W, D, F for warm-up, drop and failure sets. */
 	function setLabel(ex: LiveExercise, j: number) {
-		if (ex.sets[j].type === 'WARMUP') return 'W';
-		return String(ex.sets.slice(0, j + 1).filter((s) => s.type !== 'WARMUP').length);
+		const t = ex.sets[j].type;
+		if (t === 'WARMUP') return 'W';
+		if (t === 'DROP') return 'D';
+		if (t === 'FAILURE') return 'F';
+		return String(ex.sets.slice(0, j + 1).filter((s) => s.type === 'NORMAL').length);
+	}
+
+	const SET_TYPE_LABEL = {
+		NORMAL: 'Working set',
+		WARMUP: 'Warm-up',
+		DROP: 'Drop set',
+		FAILURE: 'To failure'
+	} as const;
+
+	/** Superset letters (A, B, …) for exercises that are joined to a neighbour. */
+	const supersets = $derived.by(() => {
+		const out: { letter: string | null; first: boolean; last: boolean }[] = [];
+		let n = 0;
+		w?.exercises.forEach((_, k) => {
+			const withPrev = k > 0 && live.linkedToNext(k - 1);
+			const withNext = live.linkedToNext(k);
+			if (!withPrev && withNext) n++;
+			out.push({
+				letter: withPrev || withNext ? String.fromCharCode(64 + n) : null,
+				first: !withPrev && withNext,
+				last: withPrev && !withNext
+			});
+		});
+		return out;
+	});
+
+	/** Weight to open the plate calculator with: the next set to do. */
+	function openPlates(ex: LiveExercise) {
+		const s = ex.sets.find((x) => !x.completedAt) ?? ex.sets.at(-1);
+		const j = s ? ex.sets.indexOf(s) : 0;
+		platesKg = s?.weightKg ?? s?.targetWeightKg ?? live.previousFor(ex, j)?.weightKg ?? null;
+		platesOpen = true;
 	}
 
 	function prevText(ex: LiveExercise, j: number) {
@@ -96,7 +137,6 @@
 
 	function tick(i: number, j: number) {
 		unlockAudio();
-		deleting = null;
 		void live.toggleSet(i, j);
 	}
 
@@ -169,15 +209,37 @@
 
 	<ul class="flex flex-col gap-4">
 		{#each w.exercises as ex, i (ex.id)}
-			<li class="glass p-4">
+			{@const ss = supersets[i]}
+			<li
+				class={[
+					'glass p-4',
+					ss?.letter && 'border-l-2 !border-l-magenta',
+					ss?.letter && !ss.first && '-mt-2.5 !rounded-t-md',
+					ss?.letter && !ss.last && '!rounded-b-md'
+				]}
+			>
+				{#if ss?.first}
+					<p class="mb-2 eyebrow !text-magenta">Superset {ss.letter}</p>
+				{/if}
 				<div class="mb-3 flex items-start justify-between gap-2">
 					<h2 class="min-w-0 text-gradient font-semibold">{ex.name}</h2>
-					<button
-						class="-mt-1 -mr-1 grid size-8 shrink-0 place-items-center rounded-lg text-ink-2"
-						aria-label="Exercise options"
-						onclick={() => ((menuFor = i), (menuOpen = true))}>⋯</button
-					>
+					<div class="-mt-1 -mr-1 flex shrink-0 items-center gap-1">
+						<button
+							class="h-8 rounded-lg px-2 text-[0.6875rem] font-bold tracking-[0.12em] text-ink-3"
+							aria-label="Plate calculator"
+							onclick={() => openPlates(ex)}>PLATES</button
+						>
+						<button
+							class="grid size-8 place-items-center rounded-lg text-ink-2"
+							aria-label="Exercise options"
+							onclick={() => ((menuFor = i), (noteDraft = ex.notes ?? ''), (menuOpen = true))}
+							>⋯</button
+						>
+					</div>
 				</div>
+				{#if ex.notes}
+					<p class="-mt-2 mb-3 text-sm text-ink-2 italic">{ex.notes}</p>
+				{/if}
 
 				<div
 					class="grid grid-cols-[2rem_minmax(0,1fr)_4.25rem_3.5rem_2.75rem] items-center gap-x-2 gap-y-2 text-center"
@@ -193,11 +255,14 @@
 						<button
 							class={[
 								'h-10 rounded-lg num text-sm font-bold',
-								set.type === 'WARMUP' ? 'text-ember' : 'text-ink-2'
+								set.type === 'WARMUP'
+									? 'text-ember'
+									: set.type === 'NORMAL'
+										? 'text-ink-2'
+										: 'text-cyan'
 							]}
 							aria-label="Set {j + 1} options"
-							onclick={() => (deleting = deleting === set.id ? null : set.id)}
-							>{setLabel(ex, j)}</button
+							onclick={() => ((setMenu = { i, j }), (setMenuOpen = true))}>{setLabel(ex, j)}</button
 						>
 						<span class="truncate num text-xs text-ink-3">{prevText(ex, j)}</span>
 						<input
@@ -223,22 +288,15 @@
 							value={set.reps ?? ''}
 							onchange={(e) => live.updateSet(i, j, { reps: parse(e.currentTarget.value) })}
 						/>
-						{#if deleting === set.id}
-							<button
-								class="h-10 rounded-xl bg-ember/20 text-xs font-bold text-ember"
-								onclick={() => ((deleting = null), live.removeSet(i, j))}>Del</button
-							>
-						{:else}
-							<button
-								class={[
-									'tick relative h-10 rounded-xl text-sm font-bold transition',
-									done ? 'is-done text-night bg-primary-gradient' : 'bg-white/[0.08] text-ink-3'
-								]}
-								aria-label={done ? `Untick set ${j + 1}` : `Tick set ${j + 1}`}
-								aria-pressed={done}
-								onclick={() => tick(i, j)}>✓</button
-							>
-						{/if}
+						<button
+							class={[
+								'tick relative h-10 rounded-xl text-sm font-bold transition',
+								done ? 'is-done text-night bg-primary-gradient' : 'bg-white/[0.08] text-ink-3'
+							]}
+							aria-label={done ? `Untick set ${j + 1}` : `Tick set ${j + 1}`}
+							aria-pressed={done}
+							onclick={() => tick(i, j)}>✓</button
+						>
 					{/each}
 				</div>
 
@@ -274,6 +332,23 @@
 					{/each}
 				</select>
 			</label>
+			<label class="mb-4 flex flex-col gap-1.5">
+				<span class="eyebrow">Note</span>
+				<textarea
+					class="field min-h-16 resize-none"
+					placeholder="Seat height 4, grip width…"
+					bind:value={noteDraft}
+					onblur={() => live.setNote(i, noteDraft)}></textarea>
+			</label>
+			{#if i < w.exercises.length - 1}
+				<button
+					class="btn-glass mb-3 w-full"
+					onclick={() => ((menuOpen = false), live.toggleSuperset(i))}
+					>{live.linkedToNext(i)
+						? `Unlink from ${w.exercises[i + 1].name}`
+						: `Superset with ${w.exercises[i + 1].name}`}</button
+				>
+			{/if}
 			<div class="grid grid-cols-2 gap-3">
 				<button
 					class="btn-glass"
@@ -292,6 +367,33 @@
 			>
 		{/if}
 	</Sheet>
+
+	<Sheet bind:open={setMenuOpen} title={setMenu ? `Set ${setMenu.j + 1}` : ''}>
+		{#if setMenu && w.exercises[setMenu.i]?.sets[setMenu.j]}
+			{@const { i, j } = setMenu}
+			{@const current = w.exercises[i].sets[j].type}
+			<div class="grid grid-cols-2 gap-2 pt-1">
+				{#each SET_TYPES as t (t)}
+					<button
+						class={[
+							'rounded-2xl px-4 py-3 text-left text-sm font-semibold',
+							current === t ? 'bg-white/15' : 'bg-white/[0.05] text-ink-2'
+						]}
+						aria-pressed={current === t}
+						onclick={() => ((setMenuOpen = false), live.setSetType(i, j, t))}
+					>
+						<span class="mr-1.5 num">{t === 'NORMAL' ? '1' : t[0]}</span>{SET_TYPE_LABEL[t]}
+					</button>
+				{/each}
+			</div>
+			<button
+				class="btn-glass mt-3 w-full text-ember"
+				onclick={() => ((setMenuOpen = false), live.removeSet(i, j))}>Delete set</button
+			>
+		{/if}
+	</Sheet>
+
+	<PlateSheet bind:open={platesOpen} initialKg={platesKg} />
 
 	<Sheet bind:open={finishOpen} title="Finish workout?">
 		{#if ticked === 0}

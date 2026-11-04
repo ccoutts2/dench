@@ -53,6 +53,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					position,
 					restSec: e.restSec,
 					notes: e.notes,
+					supersetGroup: e.supersetGroup,
 					sets: {
 						create: e.sets.map((s, i) => ({
 							position: i,

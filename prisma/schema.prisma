@@ -14,24 +14,26 @@ datasource db {
 // ─── Auth (Better Auth) ───────────────────────────────────────────────────────
 
 model User {
-  id            String    @id
+  id            String   @id
   name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  sessions      Session[]
-  accounts      Account[]
+  sessions Session[]
+  accounts Account[]
 
-  profile         Profile?
-  exercises       Exercise[]
-  folders         Folder[]
-  templates       Template[]
-  workouts        Workout[]
-  personalRecords PersonalRecord[]
-  measurements    Measurement[]
+  profile           Profile?
+  exercises         Exercise[]
+  folders           Folder[]
+  templates         Template[]
+  workouts          Workout[]
+  personalRecords   PersonalRecord[]
+  measurements      Measurement[]
+  pushSubscriptions PushSubscription[]
+  restAlert         RestAlert?
 
   @@map("user")
 }
@@ -91,18 +93,18 @@ enum Units {
 }
 
 model Profile {
-  userId         String   @id
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  units          Units    @default(KG)
-  defaultRestSec Int      @default(120)
-  bodyweightKg   Decimal? @db.Decimal(5, 2)
-  heightCm       Decimal? @db.Decimal(5, 1)
-  barWeightKg    Decimal  @default(20) @db.Decimal(5, 2)
+  userId         String    @id
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  units          Units     @default(KG)
+  defaultRestSec Int       @default(120)
+  bodyweightKg   Decimal?  @db.Decimal(5, 2)
+  heightCm       Decimal?  @db.Decimal(5, 1)
+  barWeightKg    Decimal   @default(20) @db.Decimal(5, 2)
   /// Available plate sizes (kg), largest first. Used by the plate calculator.
   plateSetKg     Decimal[] @default([25, 20, 15, 10, 5, 2.5, 1.25]) @db.Decimal(5, 2)
   liftingSince   DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@map("profile")
 }
@@ -221,17 +223,17 @@ model Template {
 }
 
 model TemplateExercise {
-  id           String        @id @default(uuid(7))
-  templateId   String
-  template     Template      @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  exerciseId   String
-  exercise     Exercise      @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-  position     Int
+  id            String        @id @default(uuid(7))
+  templateId    String
+  template      Template      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  exerciseId    String
+  exercise      Exercise      @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  position      Int
   /// Exercises sharing a supersetGroup within a template run as a superset.
   supersetGroup String?
-  restSec      Int?
-  notes        String?
-  sets         TemplateSet[]
+  restSec       Int?
+  notes         String?
+  sets          TemplateSet[]
 
   @@index([templateId])
   @@map("template_exercise")
@@ -261,19 +263,19 @@ model TemplateSet {
 
 model Workout {
   /// Client-generated UUIDv7.
-  id          String            @id
-  userId      String
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  templateId  String?
-  template    Template?         @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  name        String
-  sessionType SessionType       @default(OTHER)
-  notes       String?
-  startedAt   DateTime
-  finishedAt  DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  exercises   WorkoutExercise[]
+  id              String            @id
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId      String?
+  template        Template?         @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  name            String
+  sessionType     SessionType       @default(OTHER)
+  notes           String?
+  startedAt       DateTime
+  finishedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  exercises       WorkoutExercise[]
   personalRecords PersonalRecord[]
 
   @@index([userId, startedAt])
@@ -376,4 +378,33 @@ model Measurement {
 
   @@index([userId, kind, measuredAt])
   @@map("measurement")
+}
+
+// ─── Rest-over push ───────────────────────────────────────────────────────────
+
+/// A browser that agreed to notifications (one per installed device).
+model PushSubscription {
+  id        String   @id @default(uuid(7))
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("push_subscription")
+}
+
+/// The rest timer currently running for a user. A new token replaces the old
+/// one, so a stale scheduled send can tell it was superseded and stay quiet.
+model RestAlert {
+  userId String   @id
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token  String
+  endsAt DateTime
+  title  String
+  body   String
+
+  @@map("rest_alert")
 }

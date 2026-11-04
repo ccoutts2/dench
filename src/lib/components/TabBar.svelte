@@ -33,7 +33,10 @@
 		href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href);
 </script>
 
-<nav class="fixed inset-x-0 bottom-0 z-40 px-4 pb-safe" aria-label="Main">
+<nav
+	class="fixed inset-x-0 bottom-0 z-40 px-4 pb-safe [view-transition-name:tabbar]"
+	aria-label="Main"
+>
 	<ul
 		class="glass mx-auto flex max-w-md items-stretch justify-around rounded-[1.75rem] p-1.5 glass-strong"
 	>

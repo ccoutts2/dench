@@ -31,6 +31,13 @@ export const variables = defineEnvVars({
 		description: 'Sign in with Apple client secret JWT (optional).',
 		schema: optional
 	},
+	VAPID_PUBLIC_KEY: {
+		description:
+			'Web Push public key, shared with the browser (optional: no rest alerts without it).',
+		public: true,
+		schema: optional
+	},
+	VAPID_PRIVATE_KEY: { description: 'Web Push private key (optional).', schema: optional },
 	APPLE_APP_BUNDLE_IDENTIFIER: {
 		description: 'Apple app bundle identifier, if a native wrapper is added later (optional).',
 		schema: optional

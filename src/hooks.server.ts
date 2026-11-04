@@ -5,7 +5,8 @@ import { building } from '$app/env';
 import { auth } from '#lib/server/auth.ts';
 
 /** Routes reachable without a session. */
-const PUBLIC = ['/sign-in', '/sign-up', '/api/auth', '/offline'];
+// /api/push/fire is server-to-server and checks its own HMAC signature.
+const PUBLIC = ['/sign-in', '/sign-up', '/api/auth', '/offline', '/api/push/fire'];
 const isPublic = (path: string) => PUBLIC.some((p) => path === p || path.startsWith(`${p}/`));
 
 const authHandle: Handle = async ({ event, resolve }) => {

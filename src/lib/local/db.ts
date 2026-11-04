@@ -7,6 +7,7 @@
  */
 import Dexie, { type EntityTable } from 'dexie';
 import type { Bests, RecordHit } from '#lib/records.ts';
+import { DEFAULT_PLATES_KG } from '#lib/plates.ts';
 import type {
 	LibraryExercise,
 	PreviousSet,
@@ -33,6 +34,8 @@ export type LiveExercise = {
 	name: string;
 	restSec: number | null;
 	notes: string | null;
+	/** Adjacent exercises with the same group form a superset (absent on older saves). */
+	supersetGroup?: string | null;
 	sets: LiveSet[];
 };
 
@@ -94,5 +97,12 @@ export const db = new DenchDB();
 
 export async function getSettings(): Promise<Settings> {
 	const row = await db.meta.get('settings');
-	return (row?.value as Settings) ?? { defaultRestSec: 120, units: 'KG', barWeightKg: 20 };
+	const s = row?.value as Partial<Settings> | undefined;
+	return {
+		defaultRestSec: 120,
+		units: 'KG',
+		barWeightKg: 20,
+		plateSetKg: DEFAULT_PLATES_KG,
+		...s
+	};
 }

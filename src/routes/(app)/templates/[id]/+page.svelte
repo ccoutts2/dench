@@ -44,6 +44,42 @@
 
 	const num = (v: string) => (v.trim() === '' ? null : Number(v));
 
+	// ─── Supersets & set types ────────────────────────────────────────────────
+
+	const linked = (i: number) =>
+		!!rows[i]?.supersetGroup && rows[i + 1]?.supersetGroup === rows[i].supersetGroup;
+
+	function toggleLink(i: number) {
+		if (linked(i)) {
+			const old = rows[i].supersetGroup;
+			const fresh = uuidv7();
+			for (let k = i + 1; k < rows.length && rows[k].supersetGroup === old; k++) {
+				rows[k].supersetGroup = fresh;
+			}
+		} else {
+			const g = rows[i].supersetGroup ?? uuidv7();
+			const old = rows[i + 1].supersetGroup;
+			rows[i].supersetGroup = rows[i + 1].supersetGroup = g;
+			for (let k = i + 2; old && k < rows.length && rows[k].supersetGroup === old; k++) {
+				rows[k].supersetGroup = g;
+			}
+		}
+	}
+
+	/** Groups that no longer join two neighbours (after moves/removals) are dropped. */
+	function tidyGroups() {
+		rows.forEach((r, k) => {
+			if (r.supersetGroup && !linked(k) && !linked(k - 1)) r.supersetGroup = null;
+		});
+	}
+
+	const TYPE_CYCLE = ['NORMAL', 'WARMUP', 'DROP', 'FAILURE'] as const;
+	const typeLabel = (row: Row, j: number) => {
+		const t = row.sets[j].type;
+		if (t !== 'NORMAL') return t[0];
+		return String(row.sets.slice(0, j + 1).filter((s) => s.type === 'NORMAL').length);
+	};
+
 	async function save() {
 		error = null;
 		if (!name.trim()) {
@@ -55,6 +91,7 @@
 			return;
 		}
 		saving = true;
+		tidyGroups();
 		const body = {
 			id,
 			name: name.trim(),
@@ -62,10 +99,11 @@
 			folderId: folderChoice && folderChoice !== '__new' ? folderChoice : null,
 			newFolderName: folderChoice === '__new' ? newFolderName.trim() : null,
 			notes: null,
-			exercises: rows.map(({ exerciseId, restSec, notes, sets }) => ({
+			exercises: rows.map(({ exerciseId, restSec, notes, supersetGroup, sets }) => ({
 				exerciseId,
 				restSec,
 				notes,
+				supersetGroup,
 				sets
 			}))
 		};
@@ -156,7 +194,17 @@
 
 <ul class="flex flex-col gap-3">
 	{#each rows as row, i (row.key)}
-		<li class="glass p-4">
+		<li
+			class={[
+				'glass p-4',
+				(linked(i) || linked(i - 1)) && 'border-l-2 !border-l-magenta',
+				linked(i - 1) && '-mt-3 !rounded-t-md',
+				linked(i) && '!rounded-b-md'
+			]}
+		>
+			{#if linked(i) && !linked(i - 1)}
+				<p class="mb-2 eyebrow !text-magenta">Superset</p>
+			{/if}
 			<div class="mb-3 flex items-start justify-between gap-2">
 				<h3 class="min-w-0 text-gradient font-semibold break-words">{row.name}</h3>
 				<div class="flex shrink-0 gap-1 text-ink-2">
@@ -187,7 +235,20 @@
 					class="eyebrow">Reps</span
 				><span></span>
 				{#each row.sets as set, j (j)}
-					<span class="num text-sm text-ink-2">{j + 1}</span>
+					<button
+						class={[
+							'h-10 rounded-lg num text-sm font-bold',
+							set.type === 'WARMUP'
+								? 'text-ember'
+								: set.type === 'NORMAL'
+									? 'text-ink-2'
+									: 'text-cyan'
+						]}
+						aria-label="Set {j + 1} type: {set.type.toLowerCase()}. Tap to change"
+						onclick={() =>
+							(set.type = TYPE_CYCLE[(TYPE_CYCLE.indexOf(set.type) + 1) % TYPE_CYCLE.length])}
+						>{typeLabel(row, j)}</button
+					>
 					<input
 						class="h-10 w-full min-w-0 rounded-xl bg-white/[0.06] text-center num focus:bg-white/10 focus:outline-none"
 						inputmode="decimal"
@@ -234,8 +295,23 @@
 				</label>
 			</div>
 		</li>
+		{#if i < rows.length - 1}
+			<li class="-my-1.5 flex justify-center">
+				<button
+					class={[
+						'rounded-full px-3 py-1 text-[0.6875rem] font-semibold tracking-[0.08em] uppercase',
+						linked(i) ? 'bg-magenta/20 text-magenta' : 'text-ink-3'
+					]}
+					aria-pressed={linked(i)}
+					onclick={() => toggleLink(i)}>{linked(i) ? 'Superset ✓' : '+ Superset'}</button
+				>
+			</li>
+		{/if}
 	{/each}
 </ul>
+<p class="mt-2 px-1 text-xs text-ink-3">
+	Tap a set number to make it a warm-up, drop or failure set.
+</p>
 
 <button class="btn-glass mt-4 w-full" onclick={() => (pickerOpen = true)}>+ Add exercises</button>
 
@@ -253,6 +329,7 @@
 				name: ex.name,
 				restSec: null,
 				notes: null,
+				supersetGroup: null,
 				sets: Array.from({ length: 3 }, () => ({
 					type: 'NORMAL' as const,
 					targetWeightKg: null,

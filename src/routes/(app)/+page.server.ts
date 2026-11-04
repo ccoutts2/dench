@@ -51,6 +51,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				name: e.exercise.name,
 				restSec: e.restSec,
 				notes: e.notes,
+				supersetGroup: e.supersetGroup,
 				sets: e.sets.map((s) => ({
 					type: s.type,
 					targetWeightKg: s.targetWeightKg?.toNumber() ?? null,

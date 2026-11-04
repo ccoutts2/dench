@@ -88,8 +88,9 @@
 	}
 
 	function setLabel(list: WorkoutDTO['exercises'][number]['sets'], j: number) {
-		if (list[j].type === 'WARMUP') return 'W';
-		return String(list.slice(0, j + 1).filter((s) => s.type !== 'WARMUP').length);
+		const t = list[j].type;
+		if (t !== 'NORMAL') return t[0];
+		return String(list.slice(0, j + 1).filter((s) => s.type === 'NORMAL').length);
 	}
 
 	// ─── Editing ───────────────────────────────────────────────────────────────
@@ -165,6 +166,47 @@
 			danger: true
 		});
 		if (ok) draft = null;
+	}
+
+	let templating = $state(false);
+	let templateError = $state<string | null>(null);
+
+	/** Turn this session into a template: same exercises, its numbers become the targets. */
+	async function saveAsTemplate() {
+		if (!view) return;
+		templating = true;
+		templateError = null;
+		const id = uuidv7();
+		try {
+			const res = await fetch('/api/templates', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					id,
+					name: view.name,
+					sessionType: view.sessionType,
+					folderId: null,
+					notes: null,
+					exercises: view.exercises.map((e) => ({
+						exerciseId: e.exerciseId,
+						restSec: e.restSec,
+						notes: e.notes,
+						supersetGroup: e.supersetGroup ?? null,
+						sets: e.sets.map((s) => ({
+							type: s.type,
+							targetWeightKg: s.weightKg,
+							targetReps: s.reps
+						}))
+					}))
+				})
+			});
+			if (!res.ok) throw new Error();
+			await goto(resolve('/(app)/templates/[id]', { id }));
+		} catch {
+			templateError = 'Could not create the template. Templates need signal.';
+		} finally {
+			templating = false;
+		}
 	}
 
 	async function remove() {
@@ -271,7 +313,11 @@
 			{/each}
 		</div>
 
-		<button class="btn-glass mt-6 w-full text-ember" onclick={remove}>Delete workout</button>
+		<button class="btn-glass mt-6 w-full" onclick={saveAsTemplate} disabled={templating}
+			>{templating ? 'Creating template…' : 'Save as template'}</button
+		>
+		{#if templateError}<p class="mt-2 text-sm text-ember">{templateError}</p>{/if}
+		<button class="btn-glass mt-3 w-full text-ember" onclick={remove}>Delete workout</button>
 	{:else}
 		<div class="flex flex-col gap-3">
 			{#each draft.exercises as ex, i (ex.id)}

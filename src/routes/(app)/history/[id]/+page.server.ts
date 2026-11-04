@@ -33,6 +33,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			exerciseId: e.exerciseId,
 			restSec: e.restSec,
 			notes: e.notes,
+			supersetGroup: e.supersetGroup,
 			sets: e.sets.map((s) => ({
 				id: s.id,
 				type: s.type,

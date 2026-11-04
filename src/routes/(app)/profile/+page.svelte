@@ -8,6 +8,17 @@
 	import { ask } from '#lib/confirm.svelte.ts';
 	import { bootstrap, clearLocal, pendingCount } from '#lib/local/sync.ts';
 	import { units } from '#lib/units.svelte.ts';
+	import { onMount } from 'svelte';
+	import InstallGuide from '#lib/components/InstallGuide.svelte';
+	import { PLATE_CHOICES } from '#lib/plates.ts';
+	import {
+		disablePush,
+		enablePush,
+		isIos,
+		isStandalone,
+		pushAvailable,
+		pushEnabled
+	} from '#lib/push.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -54,11 +65,22 @@
 	const inUnit = (kg: number | null, u: 'KG' | 'LB') =>
 		kg === null ? '' : String(u === 'KG' ? +kg.toFixed(2) : +(kg / KG_PER_LB).toFixed(1));
 
+	let plates = $state<number[]>([]);
+	const DEFAULT_PLATES = { KG: [25, 20, 15, 10, 5, 2.5, 1.25], LB: [45, 35, 25, 10, 5, 2.5] };
+	const plateChoices = $derived(
+		[...new Set([...PLATE_CHOICES[formUnits], ...plates])].sort((a, b) => b - a)
+	);
+
 	function openEdit() {
 		formUnits = data.profile.units;
 		bodyweight = inUnit(data.profile.bodyweightKg, formUnits);
 		barWeight = inUnit(data.profile.barWeightKg, formUnits);
+		plates = data.profile.plateSetKg.map((p) => Number(inUnit(p, formUnits)));
 		editing = true;
+	}
+
+	function togglePlate(p: number) {
+		plates = plates.includes(p) ? plates.filter((x) => x !== p) : [...plates, p];
 	}
 
 	/** Switching units converts what's already typed, so nothing silently changes value. */
@@ -71,11 +93,51 @@
 			return inUnit(kg, u);
 		};
 		bodyweight = conv(bodyweight);
-		barWeight = conv(barWeight);
+		// Standard bars and plates differ by unit: swap to that unit's usual kit.
+		const bar = Number(barWeight);
+		barWeight = u === 'LB' && bar === 20 ? '45' : u === 'KG' && bar === 45 ? '20' : conv(barWeight);
+		plates = [...DEFAULT_PLATES[u]];
 		formUnits = u;
 	}
 
 	const REST_OPTIONS = [0, 30, 45, 60, 90, 120, 150, 180, 240, 300];
+
+	// ─── Rest alerts & install ───────────────────────────────────────────────
+
+	let installOpen = $state(false);
+	let installed = $state(false);
+	let canPush = $state(false);
+	let pushOn = $state(false);
+	let pushBusy = $state(false);
+	let pushNote = $state<string | null>(null);
+
+	onMount(async () => {
+		installed = isStandalone();
+		canPush = pushAvailable();
+		pushOn = await pushEnabled();
+	});
+
+	async function togglePush() {
+		pushNote = null;
+		if (isIos() && !installed) {
+			installOpen = true;
+			return;
+		}
+		pushBusy = true;
+		try {
+			if (pushOn) {
+				await disablePush();
+				pushOn = false;
+			} else {
+				pushOn = await enablePush();
+				if (!pushOn) pushNote = 'Notifications are blocked. Allow them in Settings to get alerts.';
+			}
+		} catch {
+			pushNote = "Couldn't turn alerts on. Try again with signal.";
+		} finally {
+			pushBusy = false;
+		}
+	}
 
 	let signingOut = $state(false);
 	async function signOut() {
@@ -150,6 +212,59 @@
 		<span class="text-ink-3">›</span>
 	</a>
 </section>
+
+<section class="glass mb-2 divide-y divide-white/[0.07] overflow-hidden">
+	{#if canPush || isIos()}
+		<button
+			class="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
+			onclick={togglePush}
+			disabled={pushBusy}
+			aria-pressed={pushOn}
+		>
+			<span>
+				<span class="block text-[0.9375rem]">Rest-over alerts</span>
+				<span class="block text-xs text-ink-3"
+					>{isIos() && !installed
+						? 'Add Dench to your Home Screen first'
+						: 'A notification when rest ends, even with the phone locked'}</span
+				>
+			</span>
+			<span
+				class={[
+					'relative h-7 w-12 shrink-0 rounded-full transition',
+					pushOn ? 'bg-primary-gradient' : 'bg-white/15'
+				]}
+			>
+				<span
+					class={[
+						'absolute top-1 size-5 rounded-full bg-ink transition-all',
+						pushOn ? 'left-6' : 'left-1'
+					]}
+				></span>
+			</span>
+		</button>
+	{/if}
+	<a
+		class="flex items-center justify-between px-4 py-3.5"
+		href={resolve('/api/export')}
+		download
+		data-sveltekit-reload
+	>
+		<span class="text-[0.9375rem]">Export CSV</span>
+		<span class="text-ink-3">›</span>
+	</a>
+	<button
+		class="flex w-full items-center justify-between px-4 py-3.5 text-left"
+		onclick={() => (installOpen = true)}
+	>
+		<span class="text-[0.9375rem]">Add to Home Screen</span>
+		<span class="text-sm text-ink-3">{installed ? 'Installed ✓' : 'How to ›'}</span>
+	</button>
+</section>
+{#if pushNote}<p class="mb-2 px-1 text-xs text-ember">{pushNote}</p>{/if}
+<div class="mb-6"></div>
+
+<InstallGuide bind:open={installOpen} />
 
 <button class="btn-glass w-full text-ink-2" onclick={signOut} disabled={signingOut}>
 	{signingOut ? 'Signing out…' : 'Sign out'}
@@ -226,6 +341,24 @@
 			<span class="eyebrow">Bar weight ({formUnits === 'KG' ? 'kg' : 'lb'})</span>
 			<input class="field num" name="barWeight" inputmode="decimal" bind:value={barWeight} />
 		</label>
+
+		<fieldset class="flex flex-col gap-1.5">
+			<legend class="mb-1.5 eyebrow">Plates you have ({formUnits === 'KG' ? 'kg' : 'lb'})</legend>
+			<div class="flex flex-wrap gap-2">
+				{#each plateChoices as p (p)}
+					<button
+						type="button"
+						aria-pressed={plates.includes(p)}
+						class={[
+							'min-w-12 rounded-full px-3 py-1.5 num text-sm font-semibold',
+							plates.includes(p) ? 'text-night bg-primary-gradient' : 'bg-white/[0.06] text-ink-3'
+						]}
+						onclick={() => togglePlate(p)}>{p}</button
+					>
+				{/each}
+			</div>
+			{#each plates as p (p)}<input type="hidden" name="plates" value={p} />{/each}
+		</fieldset>
 
 		{#if form?.error}<p class="text-sm text-ember">{form.error}</p>{/if}
 	</form>

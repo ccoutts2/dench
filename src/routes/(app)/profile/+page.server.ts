@@ -38,6 +38,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			bodyweightKg: profile.bodyweightKg?.toNumber() ?? null,
 			heightCm: profile.heightCm?.toNumber() ?? null,
 			barWeightKg: profile.barWeightKg.toNumber(),
+			plateSetKg: profile.plateSetKg.map((p) => p.toNumber()),
 			liftingSince: since?.toISOString() ?? null
 		},
 		name: user.name,
@@ -77,13 +78,24 @@ const ProfileForm = v.object({
 export const actions: Actions = {
 	save: async ({ locals, request }) => {
 		const userId = locals.user!.id;
-		const parsed = v.safeParse(ProfileForm, Object.fromEntries(await request.formData()));
+		const formData = await request.formData();
+		const parsed = v.safeParse(ProfileForm, Object.fromEntries(formData));
 		if (!parsed.success) return fail(400, { error: parsed.issues[0].message });
 		const f = parsed.output;
 
 		const toKg = (n: number | null) =>
 			n === null ? null : Math.round((f.units === 'LB' ? n * KG_PER_LB : n) * 100) / 100;
 		const bodyweightKg = toKg(f.bodyweight);
+		// Plate sizes arrive as repeated "plates" fields, in the chosen unit.
+		const plateSetKg = [
+			...new Set(
+				formData
+					.getAll('plates')
+					.map((p) => Number(p))
+					.filter((p) => Number.isFinite(p) && p > 0 && p <= 100)
+					.map((p) => toKg(p)!)
+			)
+		].sort((a, b) => b - a);
 
 		const before = await db.profile.findUnique({
 			where: { userId },
@@ -102,7 +114,8 @@ export const actions: Actions = {
 					defaultRestSec: f.defaultRestSec,
 					bodyweightKg,
 					heightCm: f.heightCm,
-					barWeightKg: toKg(f.barWeight)!
+					barWeightKg: toKg(f.barWeight)!,
+					...(plateSetKg.length ? { plateSetKg } : {})
 				}
 			}),
 			// A new bodyweight also goes on the measurements chart.

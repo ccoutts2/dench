@@ -5,7 +5,7 @@
  *  - App shell (built JS/CSS + static files + /offline) is precached on install.
  *  - Pages and SvelteKit data requests: network first, cached copy when offline.
  *  - Exercise library (/api/exercises): stale-while-revalidate.
- *  - Google Fonts: cache first.
+ *  - Fonts are self-hosted build assets (Latin subsets precached).
  *  - Auth endpoints and non-GET requests are never touched.
  */
 import { self } from '$app/service-worker';
@@ -18,7 +18,10 @@ const DATA = 'data-v1';
 const FONTS = 'fonts-v1';
 const KEEP = new Set([SHELL, PAGES, DATA, FONTS]);
 
-const PRECACHE = [...immutable, ...assets, ...prerendered].map((f) => f.path);
+// Fonts ship every script subset; only Latin is precached; the rest (Cyrillic,
+// Greek, …) download on demand if a name ever needs them.
+const wanted = (path: string) => !path.endsWith('.woff2') || /-latin-(ext-)?wght/.test(path);
+const PRECACHE = [...immutable, ...assets, ...prerendered].map((f) => f.path).filter(wanted);
 const PRECACHED = new Set(PRECACHE.map((p) => new URL(p, self.location.href).pathname));
 
 self.addEventListener('install', (event) => {
@@ -144,4 +147,42 @@ self.addEventListener('message', (event) => {
 			})()
 		);
 	}
+});
+
+// ─── Rest-over push ───────────────────────────────────────────────────────────
+
+self.addEventListener('push', (event) => {
+	const data = (event.data?.json() ?? {}) as { title?: string; body?: string; tag?: string };
+	event.waitUntil(
+		(async () => {
+			// iOS requires every push to show a notification. If the app is on screen
+			// it has already chimed, so keep this one quiet.
+			const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+			const visible = windows.some((c) => (c as WindowClient).visibilityState === 'visible');
+			await self.registration.showNotification(data.title ?? 'Rest over', {
+				body: data.body ?? 'Time for your next set.',
+				tag: data.tag ?? 'rest',
+				icon: '/icons/icon-192.png',
+				badge: '/icons/icon-192.png',
+				silent: visible
+			});
+		})()
+	);
+});
+
+self.addEventListener('notificationclick', (event) => {
+	event.notification.close();
+	event.waitUntil(
+		(async () => {
+			const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+			const existing = windows[0] as WindowClient | undefined;
+			if (existing) {
+				await existing.focus();
+				if (!new URL(existing.url).pathname.startsWith('/workout'))
+					await existing.navigate('/workout');
+			} else {
+				await self.clients.openWindow('/workout');
+			}
+		})()
+	);
 });

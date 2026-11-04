@@ -6,6 +6,8 @@
 	import TabBar from '#lib/components/TabBar.svelte';
 	import RestTimer from '#lib/components/RestTimer.svelte';
 	import ConfirmSheet from '#lib/components/ConfirmSheet.svelte';
+	import InstallGuide from '#lib/components/InstallGuide.svelte';
+	import { isIos, isStandalone } from '#lib/push.ts';
 	import { live } from '#lib/local/live.svelte.ts';
 	import { startSync } from '#lib/local/sync.ts';
 	import { formatDuration } from '#lib/types.ts';
@@ -31,9 +33,23 @@
 		startSync();
 		void live.load();
 		warmOfflineCache();
+		offerInstall();
 		const id = setInterval(() => (now = Date.now()), 1000);
 		return () => clearInterval(id);
 	});
+
+	let installOpen = $state(false);
+	/** iOS has no install prompt: show the how-to once, on the first visit in Safari. */
+	function offerInstall() {
+		if (!isIos() || isStandalone()) return;
+		try {
+			if (localStorage.getItem('dench:install-guide')) return;
+			localStorage.setItem('dench:install-guide', '1');
+		} catch {
+			return; // private mode etc.: don't nag every visit
+		}
+		setTimeout(() => (installOpen = true), 1200);
+	}
 
 	/** Ask the service worker to cache the core screens so they open with no signal. */
 	function warmOfflineCache() {
@@ -88,3 +104,4 @@
 {/if}
 
 <ConfirmSheet />
+<InstallGuide bind:open={installOpen} />

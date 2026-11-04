@@ -80,7 +80,13 @@ export type LibraryExercise = {
 /** Last logged sets for an exercise — powers the "previous" column. */
 export type PreviousSet = { type: SetType; weightKg: number | null; reps: number | null };
 
-export type Settings = { defaultRestSec: number; units: 'KG' | 'LB'; barWeightKg: number };
+export type Settings = {
+	defaultRestSec: number;
+	units: 'KG' | 'LB';
+	barWeightKg: number;
+	/** Plate sizes the user has, in kg, largest first. */
+	plateSetKg: number[];
+};
 
 export type TemplateDTO = {
 	id: string;
@@ -92,6 +98,8 @@ export type TemplateDTO = {
 		exerciseId: string;
 		restSec: number | null;
 		notes: string | null;
+		/** Adjacent exercises sharing a group run as a superset. */
+		supersetGroup: string | null;
 		sets: { type: SetType; targetWeightKg: number | null; targetReps: number | null }[];
 	}[];
 };
@@ -110,6 +118,7 @@ export type WorkoutDTO = {
 		exerciseId: string;
 		restSec: number | null;
 		notes: string | null;
+		supersetGroup: string | null;
 		sets: {
 			id: string;
 			type: SetType;

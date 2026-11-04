@@ -2,7 +2,10 @@
 	Drifting gradient light behind every screen. Colours come from the
 	--mesh-* custom properties, which change with [data-session] on <html>.
 -->
-<div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-night" aria-hidden="true">
+<div
+	class="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-night [view-transition-name:mesh]"
+	aria-hidden="true"
+>
 	<div
 		class="absolute -top-[20vh] -left-[25vw] size-[85vw] max-h-[720px] max-w-[720px] animate-drift-a rounded-full opacity-55 blur-[90px] transition-colors duration-1000"
 		style="background: radial-gradient(circle, var(--mesh-1), transparent 68%)"

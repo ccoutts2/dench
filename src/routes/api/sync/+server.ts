@@ -122,6 +122,7 @@ async function saveWorkout(userId: string, payload: unknown) {
 					position,
 					restSec: e.restSec,
 					notes: e.notes,
+					supersetGroup: e.supersetGroup,
 					sets: {
 						create: e.sets.map((s, i) => ({
 							id: s.id,

@@ -8,10 +8,12 @@ import { enqueue } from './sync.ts';
 import { uuidv7 } from '#lib/uuid.ts';
 import { detectRecords, mergeBests, type RecordHit } from '#lib/records.ts';
 import { units } from '#lib/units.svelte.ts';
+import { scheduleRestAlert } from '#lib/push.ts';
 import type {
 	LibraryExercise,
 	PreviousSet,
 	SessionType,
+	SetType,
 	TemplateDTO,
 	WorkoutDTO
 } from '#lib/types.ts';
@@ -90,6 +92,7 @@ class LiveSession {
 				name: e.name,
 				restSec: e.restSec,
 				notes: e.notes,
+				supersetGroup: e.supersetGroup,
 				sets: (e.sets.length
 					? e.sets
 					: [{ type: 'NORMAL' as const, targetWeightKg: null, targetReps: null }]
@@ -109,6 +112,7 @@ class LiveSession {
 	async discard() {
 		this.workout = null;
 		await this.persist();
+		scheduleRestAlert(null);
 	}
 
 	/**
@@ -136,6 +140,7 @@ class LiveSession {
 				exerciseId: e.exerciseId,
 				restSec: e.restSec,
 				notes: e.notes,
+				supersetGroup: e.supersetGroup ?? null,
 				sets: e.sets.map((s) => ({
 					id: s.id,
 					type: s.type,
@@ -176,6 +181,7 @@ class LiveSession {
 			await db.live.delete('current');
 		});
 		this.workout = null;
+		scheduleRestAlert(null);
 		await enqueue('workout.save', dto);
 		return dto.id;
 	}
@@ -214,13 +220,65 @@ class LiveSession {
 
 	async removeExercise(i: number) {
 		this.workout?.exercises.splice(i, 1);
+		this.tidySupersets();
 		await this.persist();
+	}
+
+	async setNote(i: number, note: string) {
+		const ex = this.workout?.exercises[i];
+		if (!ex) return;
+		ex.notes = note.trim() || null;
+		await this.persist();
+	}
+
+	/** Is exercise i joined to the one after it? */
+	linkedToNext(i: number) {
+		const list = this.workout?.exercises ?? [];
+		const g = list[i]?.supersetGroup;
+		return !!g && list[i + 1]?.supersetGroup === g;
+	}
+
+	/** Join exercise i with the next one, or split them apart. */
+	async toggleSuperset(i: number) {
+		const list = this.workout?.exercises;
+		if (!list || !list[i + 1]) return;
+		if (this.linkedToNext(i)) {
+			// Split: everything after i in this run gets a fresh group.
+			const old = list[i].supersetGroup;
+			const fresh = uuidv7();
+			for (let k = i + 1; k < list.length && list[k].supersetGroup === old; k++) {
+				list[k].supersetGroup = fresh;
+			}
+		} else {
+			const g = list[i].supersetGroup ?? uuidv7();
+			const old = list[i + 1].supersetGroup;
+			list[i].supersetGroup = g;
+			list[i + 1].supersetGroup = g;
+			// If the next exercise already led a superset, bring that whole run along.
+			for (let k = i + 2; old && k < list.length && list[k].supersetGroup === old; k++) {
+				list[k].supersetGroup = g;
+			}
+		}
+		this.tidySupersets();
+		await this.persist();
+	}
+
+	/** Drop groups that no longer join two adjacent exercises (after moves/removals). */
+	private tidySupersets() {
+		const list = this.workout?.exercises ?? [];
+		list.forEach((ex, k) => {
+			const g = ex.supersetGroup;
+			if (g && list[k - 1]?.supersetGroup !== g && list[k + 1]?.supersetGroup !== g) {
+				ex.supersetGroup = null;
+			}
+		});
 	}
 
 	async moveExercise(i: number, dir: -1 | 1) {
 		const list = this.workout?.exercises;
 		if (!list || i + dir < 0 || i + dir >= list.length) return;
 		[list[i], list[i + dir]] = [list[i + dir], list[i]];
+		this.tidySupersets();
 		await this.persist();
 	}
 
@@ -251,6 +309,13 @@ class LiveSession {
 		await this.persist();
 	}
 
+	async setSetType(i: number, j: number, type: SetType) {
+		const set = this.workout?.exercises[i]?.sets[j];
+		if (!set) return;
+		set.type = type;
+		await this.persist();
+	}
+
 	async updateSet(i: number, j: number, patch: Partial<Pick<LiveSet, 'weightKg' | 'reps'>>) {
 		const set = this.workout?.exercises[i]?.sets[j];
 		if (!set) return;
@@ -273,24 +338,40 @@ class LiveSession {
 			set.reps ??= set.targetReps ?? prev?.reps ?? null;
 			set.completedAt = new Date().toISOString();
 
+			// Superset: go straight to the next exercise; rest after the round.
+			if (this.linkedToNext(i)) {
+				w.rest = null;
+				await this.persist();
+				scheduleRestAlert(null);
+				return;
+			}
+
+			let start = i;
+			while (start > 0 && this.linkedToNext(start - 1)) start--;
+			const inSuperset = start < i;
 			const sec = ex.restSec ?? (await getSettings()).defaultRestSec;
-			const next = ex.sets[j + 1];
-			const nextKg = next ? (next.weightKg ?? next.targetWeightKg) : null;
-			const upNext = next
-				? `next: set ${j + 2}${nextKg !== null ? ` · ${units.fmt(nextKg)}` : ''}`
-				: w.exercises[i + 1]
-					? `next: ${w.exercises[i + 1].name}`
-					: 'last set done';
+
+			let upNext: string;
+			if (inSuperset && w.exercises[start].sets[j + 1]) {
+				upNext = `next: round ${j + 2} · ${w.exercises[start].name}`;
+			} else if (!inSuperset && ex.sets[j + 1]) {
+				const next = ex.sets[j + 1];
+				const nextKg = next.weightKg ?? next.targetWeightKg;
+				upNext = `next: set ${j + 2}${nextKg !== null ? ` · ${units.fmt(nextKg)}` : ''}`;
+			} else {
+				upNext = w.exercises[i + 1] ? `next: ${w.exercises[i + 1].name}` : 'last set done';
+			}
 			if (sec > 0) {
 				w.rest = {
 					endsAt: Date.now() + sec * 1000,
 					totalSec: sec,
-					exercise: ex.name,
+					exercise: inSuperset ? `Superset · ${ex.name}` : ex.name,
 					next: upNext
 				};
 			}
 		}
 		await this.persist();
+		scheduleRestAlert(w.rest);
 	}
 
 	/** The previous-session set that lines up with set j (matching by position). */
@@ -306,12 +387,14 @@ class LiveSession {
 		rest.endsAt = Math.max(Date.now(), rest.endsAt + deltaSec * 1000);
 		rest.totalSec = Math.max(1, rest.totalSec + deltaSec);
 		await this.persist();
+		scheduleRestAlert(rest);
 	}
 
 	async clearRest() {
 		if (!this.workout?.rest) return;
 		this.workout.rest = null;
 		await this.persist();
+		scheduleRestAlert(null);
 	}
 }
 
