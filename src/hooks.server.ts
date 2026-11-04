@@ -6,7 +6,7 @@ import { auth } from '#lib/server/auth.ts';
 
 /** Routes reachable without a session. */
 // /api/push/fire is server-to-server and checks its own HMAC signature.
-const PUBLIC = ['/sign-in', '/sign-up', '/api/auth', '/offline', '/api/push/fire'];
+const PUBLIC = ['/welcome', '/sign-in', '/sign-up', '/api/auth', '/offline', '/api/push/fire'];
 const isPublic = (path: string) => PUBLIC.some((p) => path === p || path.startsWith(`${p}/`));
 
 const authHandle: Handle = async ({ event, resolve }) => {
@@ -22,8 +22,9 @@ const guard: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
 	if (!event.locals.user && !isPublic(path)) {
 		if (path.startsWith('/api/')) return new Response('Unauthorized', { status: 401 });
-		const next = path === '/' ? '' : `?next=${encodeURIComponent(path + event.url.search)}`;
-		redirect(303, `/sign-in${next}`);
+		// First-time visitors to the root get the landing page, not a bare form.
+		if (path === '/') redirect(303, '/welcome');
+		redirect(303, `/sign-in?next=${encodeURIComponent(path + event.url.search)}`);
 	}
 	if (event.locals.user && (path === '/sign-in' || path === '/sign-up')) redirect(303, '/');
 	return resolve(event);

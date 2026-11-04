@@ -208,7 +208,7 @@
 	<div class="mb-4 flex items-center justify-between gap-3">
 		<p class="eyebrow">Body map</p>
 		<span class="text-xs text-ink-3"
-			>{body.workouts} workout{body.workouts === 1 ? '' : 's'} · sets per week</span
+			>Sets per week, from {body.workouts} workout{body.workouts === 1 ? '' : 's'}</span
 		>
 	</div>
 	<div class="mb-4 flex gap-1 rounded-full bg-white/[0.05] p-1" role="tablist">
@@ -253,7 +253,7 @@
 			onclick={openEdit}
 		>
 			<span class="text-[0.9375rem]">{row.label}</span>
-			<span class="num text-sm text-ink-2">{row.value}</span>
+			<span class="text-sm text-ink-2">{row.value}</span>
 		</button>
 	{/each}
 </section>

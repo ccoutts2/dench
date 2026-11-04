@@ -221,12 +221,12 @@
 						<h2 class="truncate font-semibold">{w.name}</h2>
 						<span class="shrink-0 text-xs text-ink-3">{day(w.startedAt)}</span>
 					</div>
-					<p class="mt-1 num text-xs text-ink-2">
-						{Math.max(1, Math.round(w.durationMs / 60000))} min · {units.volume(w.volumeKg)}
+					<p class="mt-1 text-sm text-ink-2">
+						{Math.max(1, Math.round(w.durationMs / 60000))} min, {units.volume(w.volumeKg)}
 						{#if w.prs.length}
-							<span class="text-ember">· {w.prs.length} PR{w.prs.length > 1 ? 's' : ''}</span>
+							<span class="text-ember">, ★ {w.prs.length} PR{w.prs.length > 1 ? 's' : ''}</span>
 						{/if}
-						{#if w.pending}<span class="ml-1 text-ember">· waiting to sync</span>{/if}
+						{#if w.pending}<span class="text-ember">, waiting to sync</span>{/if}
 					</p>
 					<ul class="mt-3 flex flex-col gap-1 text-sm text-ink-2">
 						{#each w.exercises as e, i (i)}

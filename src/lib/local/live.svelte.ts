@@ -337,6 +337,7 @@ class LiveSession {
 			set.weightKg ??= set.targetWeightKg ?? prev?.weightKg ?? null;
 			set.reps ??= set.targetReps ?? prev?.reps ?? null;
 			set.completedAt = new Date().toISOString();
+			if (typeof window !== 'undefined') dispatchEvent(new CustomEvent('dench:pulse'));
 
 			// Superset: go straight to the next exercise; rest after the round.
 			if (this.linkedToNext(i)) {
@@ -365,7 +366,7 @@ class LiveSession {
 				w.rest = {
 					endsAt: Date.now() + sec * 1000,
 					totalSec: sec,
-					exercise: inSuperset ? `Superset · ${ex.name}` : ex.name,
+					exercise: inSuperset ? `${ex.name} (superset)` : ex.name,
 					next: upNext
 				};
 			}

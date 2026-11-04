@@ -6,7 +6,7 @@
 	import Sheet from '#lib/components/Sheet.svelte';
 	import PlateSheet from '#lib/components/PlateSheet.svelte';
 	import { live } from '#lib/local/live.svelte.ts';
-	import type { LiveExercise } from '#lib/local/db.ts';
+	import { db, type LiveExercise } from '#lib/local/db.ts';
 	import { unlockAudio } from '#lib/chime.ts';
 	import { ask } from '#lib/confirm.svelte.ts';
 	import { SESSION_TYPES, SET_TYPES, formatDuration, hueFor, label } from '#lib/types.ts';
@@ -108,6 +108,20 @@
 		return out;
 	});
 
+	// Plates only make sense for bar exercises. Equipment comes from the cached
+	// library; the "(Barbell)" style name suffix covers anything not cached.
+	const BAR_EQUIPMENT = new Set(['BARBELL', 'SMITH_MACHINE', 'EZ_BAR', 'TRAP_BAR']);
+	let equipment = $state<Record<string, string>>({});
+	$effect(() => {
+		const ids = w?.exercises.map((e) => e.exerciseId) ?? [];
+		void db.exercises.bulkGet(ids).then((rows) => {
+			equipment = Object.fromEntries(rows.flatMap((r) => (r ? [[r.id, r.equipment]] : [])));
+		});
+	});
+	const usesPlates = (ex: LiveExercise) =>
+		BAR_EQUIPMENT.has(equipment[ex.exerciseId]) ||
+		/\((Barbell|Smith Machine|EZ Bar|Trap Bar)\)$/.test(ex.name);
+
 	/** Weight to open the plate calculator with: the next set to do. */
 	function openPlates(ex: LiveExercise) {
 		const s = ex.sets.find((x) => !x.completedAt) ?? ex.sets.at(-1);
@@ -168,7 +182,21 @@
 {#if w}
 	<header class="sticky top-0 z-20 -mx-4 mb-4 bg-night/40 px-4 pt-safe pb-3 backdrop-blur-xl">
 		<div class="flex items-center justify-between gap-3">
-			<a class="text-sm text-ink-2" href={resolve('/(app)')} aria-label="Minimise workout">⌄</a>
+			<a
+				class="glass grid size-10 place-items-center !rounded-full text-ink"
+				href={resolve('/(app)')}
+				aria-label="Minimise workout"
+				><svg
+					class="size-5"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg
+				></a
+			>
 			{#if w.rest}
 				<!-- Rest countdown sits in the header so it never covers a button. -->
 				<button
@@ -199,7 +227,7 @@
 		onchange={(e) => live.rename(e.currentTarget.value)}
 	/>
 	<select
-		class="mt-1 mb-5 bg-transparent text-xs font-semibold tracking-[0.12em] text-ink-3 uppercase focus:outline-none"
+		class="mt-1 mb-5 bg-transparent text-sm font-medium text-ink-2 focus:outline-none"
 		aria-label="Session type"
 		value={w.sessionType}
 		onchange={(e) => live.setSessionType(e.currentTarget.value as (typeof SESSION_TYPES)[number])}
@@ -224,11 +252,13 @@
 				<div class="mb-3 flex items-start justify-between gap-2">
 					<h2 class="min-w-0 text-gradient font-semibold">{ex.name}</h2>
 					<div class="-mt-1 -mr-1 flex shrink-0 items-center gap-1">
-						<button
-							class="h-8 rounded-lg px-2 text-[0.6875rem] font-bold tracking-[0.12em] text-ink-3"
-							aria-label="Plate calculator"
-							onclick={() => openPlates(ex)}>PLATES</button
-						>
+						{#if usesPlates(ex)}
+							<button
+								class="h-8 rounded-full bg-white/[0.06] px-3 text-xs font-semibold text-ink-2"
+								aria-label="Plate calculator"
+								onclick={() => openPlates(ex)}>Plates</button
+							>
+						{/if}
 						<button
 							class="grid size-8 place-items-center rounded-lg text-ink-2"
 							aria-label="Exercise options"

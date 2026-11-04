@@ -181,11 +181,16 @@
 		{/if}
 
 		{#if last && active === null}
+			<!-- Latest value, set off to the left of its point so it never runs off the edge. -->
 			<text
-				x={Math.min(last.x, width - m.right)}
-				y={last.y - 10}
+				x={coords.length > 1 ? last.x - 10 : last.x}
+				y={last.y - 12}
 				text-anchor={coords.length > 1 ? 'end' : 'middle'}
-				class="fill-ink num text-[11px] font-semibold">{format(last.p.y)}</text
+				class="fill-ink num text-[11px] font-semibold"
+				paint-order="stroke"
+				stroke="var(--color-night)"
+				stroke-width="4"
+				stroke-linejoin="round">{format(last.p.y)}</text
 			>
 		{/if}
 	</svg>

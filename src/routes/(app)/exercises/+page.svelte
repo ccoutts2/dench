@@ -94,7 +94,7 @@
 					href={resolve('/(app)/exercises/[id]', { id: ex.id })}
 				>
 					<span class="truncate text-[0.9375rem]">{ex.name}</span>
-					<span class="shrink-0 eyebrow !tracking-[0.08em]"
+					<span class="shrink-0 text-xs text-ink-3"
 						>{ex.custom ? 'Custom' : label(ex.primaryMuscle)}</span
 					>
 				</a>

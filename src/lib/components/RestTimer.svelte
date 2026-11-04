@@ -44,7 +44,7 @@
 		class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-night/50 px-6 backdrop-blur-2xl"
 		transition:fade={{ duration: 180 }}
 	>
-		<p class="eyebrow">Rest · {rest.exercise}</p>
+		<p class="eyebrow">Resting after {rest.exercise}</p>
 		<button
 			class="relative grid size-64 place-items-center rounded-full"
 			onclick={() => (live.restExpanded = false)}
@@ -70,8 +70,16 @@
 			</div>
 		</button>
 		<div class="grid w-full max-w-xs grid-cols-3 gap-3">
-			<button class="btn-glass num" onclick={() => live.adjustRest(-15)}>−15</button>
-			<button class="btn-glass num" onclick={() => live.adjustRest(15)}>+15</button>
+			<button
+				class="btn-glass num"
+				onclick={() => live.adjustRest(-15)}
+				aria-label="Rest 15 seconds less">−15s</button
+			>
+			<button
+				class="btn-glass num"
+				onclick={() => live.adjustRest(15)}
+				aria-label="Rest 15 seconds more">+15s</button
+			>
 			<button class="btn-primary" onclick={() => live.clearRest()}>Skip</button>
 		</div>
 	</div>

@@ -89,8 +89,16 @@
 		await goto(resolve('/(app)/workout'));
 	}
 
+	/** Session colour as a marker: push magenta, pull cyan, legs ember. */
+	const SESSION_BAR: Record<string, string> = {
+		push: 'bg-magenta',
+		pull: 'bg-cyan',
+		legs: 'bg-ember',
+		'': 'bg-violet'
+	};
+
 	function ago(iso: string | null) {
-		if (!iso) return 'Never used';
+		if (!iso) return 'Not started yet';
 		const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 		if (days <= 0) return 'Today';
 		if (days === 1) return 'Yesterday';
@@ -102,7 +110,7 @@
 <header class="pt-safe pb-6">
 	<p class="mb-2 eyebrow">{dateLabel}</p>
 	<h1 class="font-display text-[2.6rem] leading-[0.98] font-extrabold tracking-tight">
-		Hey,<br /><span class="text-gradient">{firstName}.</span>
+		Hey,<br />{firstName}<span class="text-gradient">.</span>
 	</h1>
 </header>
 
@@ -140,7 +148,7 @@
 </section>
 
 {#if data.lastWorkout}
-	<section class="glass mb-8 p-4">
+	<section class="glass mb-8 p-4 glass-strong">
 		<div class="mb-3 flex items-baseline justify-between">
 			<p class="eyebrow">Last workout</p>
 			<p class="text-xs text-ink-3">
@@ -191,19 +199,32 @@
 		</div>
 	{:else}
 		{#each groups as group (group.id ?? 'none')}
-			{#if group.name}<p class="mt-5 mb-2 eyebrow">Folder · {group.name}</p>{/if}
-			<ul class="flex flex-col gap-3">
+			{#if group.name}<p class="mt-5 mb-2 eyebrow">{group.name}</p>{/if}
+			<!-- One panel of rows: the templates read as a list, not a stack of cards. -->
+			<ul class="glass divide-y divide-white/[0.07] overflow-hidden">
 				{#each group.templates as t (t.id)}
 					<li>
-						<button class="glass w-full p-4 text-left active:scale-[0.99]" onclick={() => open(t)}>
-							<div class="flex items-baseline justify-between gap-3">
-								<h3 class="truncate font-semibold">{t.name}</h3>
-								<span class="shrink-0 text-xs text-ink-3">{ago(t.lastUsedAt)}</span>
-							</div>
-							<p class="mt-1 line-clamp-2 text-sm text-ink-2">
-								{t.exercises.map((e) => e.name.replace(/ \(.*\)$/, '')).join(' · ') ||
-									'No exercises yet'}
-							</p>
+						<button
+							class="flex w-full gap-3.5 px-4 py-3.5 text-left active:bg-white/[0.04]"
+							onclick={() => open(t)}
+						>
+							<span
+								class={[
+									'mt-1 h-9 w-1 shrink-0 rounded-full',
+									SESSION_BAR[hueFor(t.sessionType) ?? '']
+								]}
+								aria-hidden="true"
+							></span>
+							<span class="min-w-0 flex-1">
+								<span class="flex items-baseline justify-between gap-3">
+									<span class="truncate font-semibold">{t.name}</span>
+									<span class="shrink-0 text-xs text-ink-3">{ago(t.lastUsedAt)}</span>
+								</span>
+								<span class="mt-0.5 line-clamp-2 block text-sm text-ink-2">
+									{t.exercises.map((e) => e.name.replace(/ \(.*\)$/, '')).join(', ') ||
+										'No exercises yet'}
+								</span>
+							</span>
 						</button>
 					</li>
 				{/each}
@@ -214,7 +235,9 @@
 
 <Sheet bind:open={previewOpen} title={preview?.name}>
 	{#if preview}
-		<p class="mb-3 eyebrow">{label(preview.sessionType)} · {preview.exercises.length} exercises</p>
+		<p class="mb-3 eyebrow">
+			{label(preview.sessionType)} session, {preview.exercises.length} exercises
+		</p>
 		<ul class="mb-2 flex flex-col">
 			{#each preview.exercises as e, i (i)}
 				<li class="flex justify-between gap-3 border-b border-white/[0.06] py-2.5 text-sm">

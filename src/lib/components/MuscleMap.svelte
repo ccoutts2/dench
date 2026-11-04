@@ -24,53 +24,56 @@
 
 	const uid = $props.id();
 
-	// One side of each figure (viewBox 200 × 400, centre line x = 100).
+	// One side of each figure (viewBox 200 × 380, centre line x = 100), mirrored for the other.
 	const FRONT: Partial<Record<MapMuscle, string[]>> = {
-		TRAPS: ['M91 49 C88 56 82 61 72 64 L92 62 Z'],
-		SHOULDERS: ['M71 64 C57 62 46 72 45 92 C52 87 60 85 67 87 C69 79 70 71 71 64 Z'],
-		CHEST: ['M98 67 L76 66 C70 76 68 88 70 100 C80 106 91 106 98 102 Z'],
-		BICEPS: ['M45 97 C41 109 41 122 45 134 C51 132 57 124 59 111 C59 101 55 95 49 93 Z'],
+		TRAPS: ['M92 52 C88 58 80 61 72 63 C80 64 88 64 95 62 Z'],
+		SHOULDERS: [
+			'M70 64 C58 64 48 72 46 88 C46 94 48 98 50 100 C54 92 60 86 68 84 C71 78 72 70 70 64 Z'
+		],
+		CHEST: ['M98 66 C90 64 80 65 73 68 C69 76 68 88 70 98 C78 104 90 105 98 100 Z'],
+		BICEPS: [
+			'M49 104 C45 114 44 126 46 136 C50 138 54 134 57 126 C60 116 60 106 58 98 C54 98 51 100 49 104 Z'
+		],
 		FOREARMS: [
-			'M43 140 C37 156 35 172 37 186 L45 187 C51 171 55 155 55 139 C51 136 47 136 43 140 Z'
+			'M44 142 C40 154 37 168 35 182 C38 184 41 184 43 182 C47 170 52 156 55 144 C52 140 47 139 44 142 Z'
 		],
 		ABS: [
-			'M86 108 L98 108 L98 166 L88 164 C84 148 84 126 86 108 Z',
-			'M72 106 C70 124 72 146 83 162 C81 140 81 122 83 108 Z'
+			'M88 106 C93 105 97 106 99 106 L99 166 C94 168 90 166 87 162 C85 146 85 122 88 106 Z',
+			'M71 106 C76 108 81 108 85 108 C83 126 83 146 85 162 C78 156 73 146 71 134 C70 124 70 114 71 106 Z'
 		],
 		QUADS: [
-			'M74 178 C68 202 68 230 74 256 C80 262 88 262 94 256 C98 232 98 206 96 184 C90 180 82 178 74 178 Z'
+			'M70 186 C66 206 67 232 72 256 C78 262 88 262 93 254 C96 234 98 208 97 188 C90 182 78 181 70 186 Z'
 		],
-		CALVES: ['M75 278 C71 298 73 320 78 342 L86 342 C90 320 92 298 90 280 C84 276 79 276 75 278 Z']
+		CALVES: [
+			'M73 278 C70 296 71 316 74 336 C78 340 84 340 87 336 C90 316 92 296 91 278 C85 273 78 273 73 278 Z'
+		]
 	};
 	const BACK: Partial<Record<MapMuscle, string[]>> = {
-		TRAPS: ['M100 48 L86 58 L72 65 L88 70 L100 100 Z'],
-		SHOULDERS: ['M71 65 C57 62 46 72 45 92 C52 87 60 85 67 87 C69 79 70 71 71 65 Z'],
+		TRAPS: ['M100 50 C94 54 86 58 74 63 C82 68 90 78 100 104 Z'],
+		SHOULDERS: FRONT.SHOULDERS,
 		BACK: [
-			'M98 102 L88 72 L74 70 C69 88 71 110 79 128 C87 136 93 140 98 142 Z',
-			'M87 145 L98 147 L98 168 L85 166 Z'
+			'M98 108 L96 76 C88 70 80 68 73 70 C69 86 70 104 75 120 C81 134 90 142 98 146 Z',
+			'M86 149 C90 151 95 152 99 152 L99 170 C93 171 88 170 84 168 C84 160 85 154 86 149 Z'
 		],
-		TRICEPS: ['M45 97 C41 110 43 124 47 134 C53 130 59 120 59 106 C57 98 53 94 47 92 Z'],
-		FOREARMS: [
-			'M43 140 C37 156 35 172 37 186 L45 187 C51 171 55 155 55 139 C51 136 47 136 43 140 Z'
+		TRICEPS: [
+			'M48 102 C44 114 44 126 46 136 C50 138 55 132 58 122 C60 112 60 104 59 98 C55 97 51 99 48 102 Z'
 		],
-		GLUTES: ['M98 172 L78 172 C70 184 70 200 78 210 C86 214 94 212 98 206 Z'],
-		HAMSTRINGS: ['M76 216 C70 234 72 252 76 266 L94 266 C98 250 98 232 96 216 Z'],
-		CALVES: ['M74 276 C68 292 70 312 78 330 C84 334 88 330 90 320 C92 300 92 288 90 278 Z']
+		FOREARMS: FRONT.FOREARMS,
+		GLUTES: ['M99 174 C90 172 80 174 73 180 C68 192 69 206 76 214 C85 218 94 216 99 210 Z'],
+		HAMSTRINGS: [
+			'M74 220 C69 236 70 252 74 264 C80 268 90 268 94 262 C97 248 98 232 96 220 C88 216 80 216 74 220 Z'
+		],
+		CALVES: [
+			'M73 276 C68 292 70 312 76 330 C81 334 86 334 89 328 C92 312 92 294 90 278 C85 272 78 272 73 276 Z'
+		]
 	};
 
-	/** Non-muscle parts, drawn faintly so the figure reads as a body. */
-	const FRAME = [
-		'M92 44 L108 44 L110 62 L90 62 Z',
-		'M74 63 C86 59 114 59 126 63 C132 80 132 100 129 120 C128 140 130 158 131 174 L69 174 C70 158 72 140 71 120 C68 100 68 80 74 63 Z',
-		'M100 6 C88 6 82 16 82 28 C82 42 90 50 100 50 C110 50 118 42 118 28 C118 16 112 6 100 6 Z',
-		'M38 188 C34 196 34 206 40 210 C46 206 48 196 46 188 Z',
-		'M162 188 C166 196 166 206 160 210 C154 206 152 196 154 188 Z',
-		'M76 344 L86 344 L88 372 L70 374 Z',
-		'M124 344 L114 344 L112 372 L130 374 Z',
-		'M74 262 C80 268 90 268 94 262 L92 276 C86 274 80 274 76 276 Z',
-		'M126 262 C120 268 110 268 106 262 L108 276 C114 274 120 274 124 276 Z',
-		'M70 164 C74 172 86 176 100 176 C114 176 126 172 130 164 L128 182 C118 178 82 178 72 182 Z'
-	];
+	/** Half the body outline (mirrored), so the figure reads as one continuous form. */
+	const SILHOUETTE =
+		'M100 4 C88 4 81 13 81 26 C81 38 87 46 93 49 L92 56 C84 60 74 61 66 63 C54 66 46 74 44 88 L41 110 C39 124 37 136 35 150 L31 182 C30 190 31 198 34 202 C37 204 40 202 41 198 L44 186 C48 170 52 154 55 140 L60 112 L64 100 C66 118 68 134 69 150 C69 160 67 168 66 178 C64 196 66 224 70 252 L72 266 C70 286 70 306 73 330 L74 350 C73 358 70 366 72 372 L88 372 C90 366 89 358 88 350 L89 330 C92 306 94 286 93 268 L95 250 C97 230 98 210 99 192 L100 190 Z';
+
+	/** Fine detail lines on the front (ab segments), drawn over the fill. */
+	const AB_LINES = ['M88 124 L99 124', 'M87 142 L99 142'];
 
 	function levelFor(m: MapMuscle): Level {
 		const v = load[m];
@@ -83,7 +86,7 @@
 		high: `url(#${uid}-hi)`,
 		mid: `url(#${uid}-mid)`,
 		low: 'rgb(124 92 255 / 0.38)',
-		none: 'rgb(255 255 255 / 0.07)'
+		none: 'rgb(255 255 255 / 0.06)'
 	};
 
 	const worked = $derived(
@@ -94,22 +97,30 @@
 	const fmtSets = (n: number) => `${+n.toFixed(1)} ${scale.unit}`;
 </script>
 
-{#snippet figure(shapes: Partial<Record<MapMuscle, string[]>>, caption: string)}
+{#snippet figure(shapes: Partial<Record<MapMuscle, string[]>>, caption: string, front: boolean)}
 	<figure class="flex min-w-0 flex-1 flex-col items-center">
 		<svg viewBox="0 0 200 380" class="h-auto w-full max-w-[9.5rem]" aria-hidden="true">
-			{#each FRAME as d, k (k)}<path {d} fill="rgb(255 255 255 / 0.05)" />{/each}
-			{#each Object.entries(shapes) as [m, paths] (m)}
-				{@const fill = FILL[levelFor(m as MapMuscle)]}
-				{#each paths as d, k (k)}
-					<path {d} {fill} stroke="rgb(7 7 13 / 0.9)" stroke-width="1.5" />
-					<path
-						{d}
-						{fill}
-						stroke="rgb(7 7 13 / 0.9)"
-						stroke-width="1.5"
-						transform="translate(200 0) scale(-1 1)"
-					/>
-				{/each}
+			{#each [false, true] as mirror (mirror)}
+				<g transform={mirror ? 'translate(200 0) scale(-1 1)' : undefined}>
+					<path d={SILHOUETTE} fill="rgb(255 255 255 / 0.045)" />
+					{#each Object.entries(shapes) as [m, paths] (m)}
+						{@const lvl = levelFor(m as MapMuscle)}
+						{#each paths as d, k (k)}
+							<path
+								{d}
+								fill={FILL[lvl]}
+								stroke="rgb(7 7 13 / 0.55)"
+								stroke-width="1"
+								filter={lvl === 'high' ? `url(#${uid}-glow)` : undefined}
+							/>
+						{/each}
+					{/each}
+					{#if front}
+						{#each AB_LINES as d, k (k)}
+							<path {d} stroke="rgb(7 7 13 / 0.45)" stroke-width="1" />
+						{/each}
+					{/if}
+				</g>
 			{/each}
 		</svg>
 		<figcaption class="mt-1 eyebrow">{caption}</figcaption>
@@ -123,6 +134,10 @@
 				<stop offset="0" stop-color="var(--color-cyan)" />
 				<stop offset="1" stop-color="var(--color-violet)" />
 			</linearGradient>
+			<filter id="{uid}-glow" x="-40%" y="-40%" width="180%" height="180%">
+				<feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur" />
+				<feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+			</filter>
 			<linearGradient id="{uid}-mid" x1="0" y1="0" x2="0" y2="1">
 				<stop offset="0" stop-color="var(--color-cyan)" stop-opacity="0.55" />
 				<stop offset="1" stop-color="var(--color-violet)" stop-opacity="0.55" />
@@ -131,8 +146,8 @@
 	</svg>
 
 	<div class="flex gap-2">
-		{@render figure(FRONT, 'Front')}
-		{@render figure(BACK, 'Back')}
+		{@render figure(FRONT, 'Front', true)}
+		{@render figure(BACK, 'Back', false)}
 	</div>
 
 	<div class="mt-3 flex justify-center gap-4 text-[0.6875rem] text-ink-2">
@@ -179,11 +194,11 @@
 					<span class="truncate">{label(m)}</span>
 					<span
 						class={[
-							'shrink-0 num text-xs',
+							'shrink-0 text-xs',
 							lvl === 'high' ? 'text-cyan' : lvl === 'mid' ? 'text-ink-2' : 'text-ink-3'
 						]}
 						>{LEVEL_LABEL[lvl as Exclude<Level, 'none'>]}
-						<span class="text-ink-3">· {+v.toFixed(1)}</span></span
+						<span class="num text-ink-3">{+v.toFixed(1)}</span></span
 					>
 				</li>
 			{/each}

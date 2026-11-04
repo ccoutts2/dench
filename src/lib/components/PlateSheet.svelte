@@ -40,7 +40,7 @@
 			placeholder="0"
 			bind:value={total}
 		/>
-		<span class="text-sm text-ink-2">{units.label} total · {bar} {units.label} bar</span>
+		<span class="text-sm text-ink-2">{units.label} total on a {bar} {units.label} bar</span>
 	</label>
 
 	{#if result}

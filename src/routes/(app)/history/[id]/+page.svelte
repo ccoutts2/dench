@@ -98,7 +98,7 @@
 			month: 'short',
 			year: 'numeric'
 		});
-		return `${d} · ${t(view.startedAt)} – ${t(view.finishedAt)}`;
+		return `${d}, ${t(view.startedAt)}–${t(view.finishedAt)}`;
 	});
 
 	const RECORD_LABEL: Record<RecordType, string> = {

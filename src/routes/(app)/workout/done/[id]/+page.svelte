@@ -18,8 +18,17 @@
 	async function load() {
 		const w = await db.workouts.get(page.params.id!);
 		if (w) {
+			const first = !workout;
 			workout = w;
 			muscles = await localMuscleLoad(w.exercises);
+			// Just finished with a PR: one big swell of light to mark it.
+			const fresh = Date.now() - new Date(w.finishedAt).getTime() < 10 * 60_000;
+			if (first && fresh && w.records?.length) {
+				setTimeout(
+					() => dispatchEvent(new CustomEvent('dench:pulse', { detail: { strong: true } })),
+					300
+				);
+			}
 		} else missing = true;
 	}
 
@@ -29,7 +38,7 @@
 	});
 
 	$effect(() => {
-		const hue = workout ? hueFor(workout.sessionType) : null;
+		const hue = workout ? (prs.length ? 'pr' : hueFor(workout.sessionType)) : null;
 		if (hue) document.documentElement.dataset.session = hue;
 		return () => {
 			delete document.documentElement.dataset.session;
@@ -56,7 +65,7 @@
 			day: 'numeric',
 			month: 'short'
 		});
-		return `${day} · ${f(workout.startedAt)} – ${f(workout.finishedAt)}`;
+		return `${day}, ${f(workout.startedAt)}–${f(workout.finishedAt)}`;
 	});
 
 	/** One headline PR per exercise, most impressive type first. */
@@ -89,9 +98,9 @@
 	<header class="pt-10 pt-safe pb-6">
 		<p class="mb-2 eyebrow">Workout complete</p>
 		<h1 class="font-display text-[3rem] leading-[0.95] font-extrabold tracking-tight">
-			Nice<br /><span class="text-gradient">work.</span>
+			Nice<br />work<span class="text-gradient">.</span>
 		</h1>
-		<p class="mt-3 text-sm text-ink-2">{workout.name} · {timeRange}</p>
+		<p class="mt-3 text-sm text-ink-2">{workout.name}<br />{timeRange}</p>
 	</header>
 
 	<dl class="mb-4 grid grid-cols-3 gap-3">
@@ -110,16 +119,16 @@
 	</dl>
 
 	{#if prs.length}
-		<section class="glass mb-4 overflow-hidden">
+		<section class="pr-card glass mb-4 overflow-hidden glass-strong">
 			<p class="flex items-center gap-2 px-4 pt-4 pb-2 font-semibold">
-				<span class="text-ember" aria-hidden="true">★</span>
+				<span class="pr-star text-ember" aria-hidden="true">★</span>
 				{prs.length} personal record{prs.length > 1 ? 's' : ''}
 			</p>
 			<ul class="divide-y divide-white/[0.07]">
 				{#each prs as pr (pr.name)}
 					<li class="flex items-center justify-between gap-3 px-4 py-3">
 						<span class="min-w-0 truncate text-[0.9375rem]">{pr.name}</span>
-						<span class="shrink-0 num text-sm text-ember"
+						<span class="shrink-0 text-sm text-ember"
 							>{describeRecord(pr.hit, (kg, dp) => units.fmt(kg, dp))}</span
 						>
 					</li>
@@ -147,7 +156,9 @@
 
 	<p class="mb-6 flex items-center gap-2 px-1 text-xs text-ink-3">
 		<span class={['size-1.5 rounded-full', workout.synced ? 'bg-cyan' : 'bg-ember']}></span>
-		{workout.synced ? 'Saved to your account' : 'Saved on this phone · syncs when you have signal'}
+		{workout.synced
+			? 'Saved to your account'
+			: 'Saved on this phone. It syncs when you have signal'}
 	</p>
 
 	<a class="btn-primary w-full" href={resolve('/(app)')}>Done</a>

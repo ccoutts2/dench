@@ -306,7 +306,7 @@
 			<li class="-my-1.5 flex justify-center">
 				<button
 					class={[
-						'rounded-full px-3 py-1 text-[0.6875rem] font-semibold tracking-[0.08em] uppercase',
+						'rounded-full px-3 py-1 text-xs font-semibold',
 						linked(i) ? 'bg-magenta/20 text-magenta' : 'text-ink-3'
 					]}
 					aria-pressed={linked(i)}

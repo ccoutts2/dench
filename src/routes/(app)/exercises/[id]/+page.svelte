@@ -91,7 +91,7 @@
 		<a class="text-sm font-semibold text-ink-2" href={resolve('/(app)/exercises')}>‹ Exercises</a>
 	</div>
 	<p class="mb-1.5 eyebrow">
-		{data.exercise.custom ? 'Custom' : label(data.exercise.primaryMuscle)} · {label(
+		{data.exercise.custom ? 'Custom' : label(data.exercise.primaryMuscle)}, {label(
 			data.exercise.equipment
 		)}
 	</p>
@@ -100,10 +100,6 @@
 	</h1>
 </header>
 
-<section class="glass mb-4 p-4">
-	<MuscleMap load={exerciseLoad} exercise />
-</section>
-
 {#if sessions.length === 0}
 	<div class="glass flex flex-col items-center gap-2 px-6 py-12 text-center">
 		<p class="font-semibold">Not logged yet</p>
@@ -111,6 +107,10 @@
 			Once you log this exercise, its best sets and progress chart show up here.
 		</p>
 	</div>
+	<section class="glass mt-4 p-4">
+		<p class="mb-3 eyebrow">Muscles it works</p>
+		<MuscleMap load={exerciseLoad} exercise />
+	</section>
 {:else}
 	<dl class="mb-4 grid grid-cols-2 gap-3">
 		{#if weighted}
@@ -179,6 +179,11 @@
 		{:else}
 			<p class="py-10 text-center text-sm text-ink-3">Nothing to chart yet.</p>
 		{/if}
+	</section>
+
+	<section class="glass mb-4 p-4">
+		<p class="mb-3 eyebrow">Muscles it works</p>
+		<MuscleMap load={exerciseLoad} exercise />
 	</section>
 
 	<p class="mb-2 eyebrow">Recent sessions</p>
