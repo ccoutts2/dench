@@ -85,7 +85,7 @@ export const SyncInput = v.object({
 		v.array(
 			v.object({
 				id: v.string(),
-				type: v.picklist(['workout.save', 'exercise.upsert']),
+				type: v.picklist(['workout.save', 'workout.delete', 'exercise.upsert']),
 				payload: v.unknown()
 			})
 		),

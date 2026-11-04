@@ -49,6 +49,7 @@ export type LiveWorkout = {
 
 export type OutboxOp =
 	| { id: string; type: 'workout.save'; payload: WorkoutDTO; createdAt: number }
+	| { id: string; type: 'workout.delete'; payload: { id: string }; createdAt: number }
 	| {
 			id: string;
 			type: 'exercise.upsert';

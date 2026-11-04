@@ -24,6 +24,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	for (const op of body.output.ops) {
 		try {
 			if (op.type === 'exercise.upsert') await upsertExercise(userId, op.payload);
+			else if (op.type === 'workout.delete') await deleteWorkout(userId, op.payload);
 			else await saveWorkout(userId, op.payload);
 			done.push(op.id);
 		} catch (err) {
@@ -53,6 +54,12 @@ async function upsertExercise(userId: string, payload: unknown) {
 		create: { id: e.id, userId, secondaryMuscles: [], ...data },
 		update: data
 	});
+}
+
+/** Idempotent: deleting something already gone (or never synced) is a no-op. */
+async function deleteWorkout(userId: string, payload: unknown) {
+	const { id } = v.parse(v.object({ id: v.string() }), payload);
+	await db.workout.deleteMany({ where: { id, userId } });
 }
 
 async function saveWorkout(userId: string, payload: unknown) {
