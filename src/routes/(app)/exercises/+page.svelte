@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import ScreenHeader from '#lib/components/ScreenHeader.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
 	import NewExerciseForm from '#lib/components/NewExerciseForm.svelte';
@@ -87,11 +88,16 @@
 {:else}
 	<ul class="glass divide-y divide-white/[0.07] overflow-hidden">
 		{#each filtered.slice(0, limit) as ex (ex.id)}
-			<li class="flex items-center justify-between gap-3 px-4 py-3">
-				<span class="truncate text-[0.9375rem]">{ex.name}</span>
-				<span class="shrink-0 eyebrow !tracking-[0.08em]"
-					>{ex.custom ? 'Custom' : label(ex.primaryMuscle)}</span
+			<li>
+				<a
+					class="flex items-center justify-between gap-3 px-4 py-3"
+					href={resolve('/(app)/exercises/[id]', { id: ex.id })}
 				>
+					<span class="truncate text-[0.9375rem]">{ex.name}</span>
+					<span class="shrink-0 eyebrow !tracking-[0.08em]"
+						>{ex.custom ? 'Custom' : label(ex.primaryMuscle)}</span
+					>
+				</a>
 			</li>
 		{/each}
 	</ul>

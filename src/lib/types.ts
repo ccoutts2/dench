@@ -50,6 +50,23 @@ export type ExerciseKind = (typeof KINDS)[number];
 export const SET_TYPES = ['NORMAL', 'WARMUP', 'DROP', 'FAILURE'] as const;
 export type SetType = (typeof SET_TYPES)[number];
 
+export const MEASUREMENT_KINDS = [
+	'BODYWEIGHT',
+	'BODY_FAT',
+	'CHEST',
+	'WAIST',
+	'HIPS',
+	'NECK',
+	'SHOULDERS',
+	'LEFT_ARM',
+	'RIGHT_ARM',
+	'LEFT_THIGH',
+	'RIGHT_THIGH',
+	'LEFT_CALF',
+	'RIGHT_CALF'
+] as const;
+export type MeasurementKind = (typeof MEASUREMENT_KINDS)[number];
+
 export type LibraryExercise = {
 	id: string;
 	name: string;

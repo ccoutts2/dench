@@ -9,6 +9,7 @@
 	import { unlockAudio } from '#lib/chime.ts';
 	import { ask } from '#lib/confirm.svelte.ts';
 	import { SESSION_TYPES, formatDuration, hueFor, label } from '#lib/types.ts';
+	import { units } from '#lib/units.svelte.ts';
 
 	let now = $state(Date.now());
 	let pickerOpen = $state(false);
@@ -77,14 +78,15 @@
 	function prevText(ex: LiveExercise, j: number) {
 		const p = live.previousFor(ex, j);
 		if (!p || (p.weightKg === null && p.reps === null)) return '—';
-		return p.weightKg !== null ? `${p.weightKg} × ${p.reps ?? 0}` : `${p.reps} reps`;
+		return p.weightKg !== null ? `${units.show(p.weightKg)} × ${p.reps ?? 0}` : `${p.reps} reps`;
 	}
 
 	function placeholder(ex: LiveExercise, j: number, field: 'weightKg' | 'reps') {
 		const set = ex.sets[j];
 		const target = field === 'weightKg' ? set.targetWeightKg : set.targetReps;
-		const v = target ?? live.previousFor(ex, j)?.[field];
-		return v === null || v === undefined ? '' : String(v);
+		const v = target ?? live.previousFor(ex, j)?.[field] ?? null;
+		if (v === null) return '';
+		return String(field === 'weightKg' ? units.show(v) : v);
 	}
 
 	function parse(value: string) {
@@ -182,7 +184,7 @@
 				>
 					<span class="eyebrow">Set</span>
 					<span class="eyebrow">Previous</span>
-					<span class="eyebrow">Kg</span>
+					<span class="eyebrow">{units.label}</span>
 					<span class="eyebrow">Reps</span>
 					<span class="eyebrow">✓</span>
 
@@ -204,10 +206,11 @@
 								done ? 'bg-transparent font-bold' : 'bg-white/[0.06] focus:bg-white/10'
 							]}
 							inputmode="decimal"
-							aria-label="Kg, set {j + 1}"
+							aria-label="{units.label}, set {j + 1}"
 							placeholder={placeholder(ex, j, 'weightKg')}
-							value={set.weightKg ?? ''}
-							onchange={(e) => live.updateSet(i, j, { weightKg: parse(e.currentTarget.value) })}
+							value={units.show(set.weightKg) ?? ''}
+							onchange={(e) =>
+								live.updateSet(i, j, { weightKg: units.toKg(parse(e.currentTarget.value)) })}
 						/>
 						<input
 							class={[

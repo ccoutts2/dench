@@ -5,6 +5,7 @@
 	import { ask } from '#lib/confirm.svelte.ts';
 	import { SESSION_TYPES, hueFor, label, type TemplateDTO } from '#lib/types.ts';
 	import { uuidv7 } from '#lib/uuid.ts';
+	import { units } from '#lib/units.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -182,8 +183,8 @@
 			<div
 				class="grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-center gap-2 text-center"
 			>
-				<span class="eyebrow">Set</span><span class="eyebrow">Kg</span><span class="eyebrow"
-					>Reps</span
+				<span class="eyebrow">Set</span><span class="eyebrow">{units.label}</span><span
+					class="eyebrow">Reps</span
 				><span></span>
 				{#each row.sets as set, j (j)}
 					<span class="num text-sm text-ink-2">{j + 1}</span>
@@ -191,9 +192,9 @@
 						class="h-10 w-full min-w-0 rounded-xl bg-white/[0.06] text-center num focus:bg-white/10 focus:outline-none"
 						inputmode="decimal"
 						placeholder="—"
-						aria-label="Target kg, set {j + 1}"
-						value={set.targetWeightKg ?? ''}
-						onchange={(e) => (set.targetWeightKg = num(e.currentTarget.value))}
+						aria-label="Target {units.label}, set {j + 1}"
+						value={units.show(set.targetWeightKg) ?? ''}
+						onchange={(e) => (set.targetWeightKg = units.toKg(num(e.currentTarget.value)))}
 					/>
 					<input
 						class="h-10 w-full min-w-0 rounded-xl bg-white/[0.06] text-center num focus:bg-white/10 focus:outline-none"

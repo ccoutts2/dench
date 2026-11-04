@@ -6,6 +6,7 @@
  * "previous" sets. Neon stays the source of truth.
  */
 import Dexie, { type EntityTable } from 'dexie';
+import type { Bests, RecordHit } from '#lib/records.ts';
 import type {
 	LibraryExercise,
 	PreviousSet,
@@ -62,6 +63,8 @@ export type LocalWorkout = WorkoutDTO & {
 	/** 0 = waiting in the outbox, 1 = on the server (IndexedDB can't index booleans). */
 	synced: 0 | 1;
 	exerciseNames: Record<string, string>;
+	/** PRs worked out on the phone at finish time (the server recomputes its own). */
+	records?: (RecordHit & { exerciseId: string })[];
 };
 
 class DenchDB extends Dexie {
@@ -71,6 +74,7 @@ class DenchDB extends Dexie {
 	previous!: EntityTable<{ exerciseId: string; sets: PreviousSet[] }, 'exerciseId'>;
 	workouts!: EntityTable<LocalWorkout, 'id'>;
 	meta!: EntityTable<{ key: string; value: unknown }, 'key'>;
+	bests!: EntityTable<{ exerciseId: string; bests: Bests }, 'exerciseId'>;
 
 	constructor() {
 		super('dench');
@@ -82,6 +86,7 @@ class DenchDB extends Dexie {
 			workouts: 'id, startedAt, synced',
 			meta: 'key'
 		});
+		this.version(2).stores({ bests: 'exerciseId' });
 	}
 }
 

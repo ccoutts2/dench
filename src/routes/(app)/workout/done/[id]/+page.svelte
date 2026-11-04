@@ -4,7 +4,9 @@
 	import { page } from '$app/state';
 	import { db, type LocalWorkout } from '#lib/local/db.ts';
 	import { onSyncChange } from '#lib/local/sync.ts';
-	import { formatVolume, hueFor, volumeOf } from '#lib/types.ts';
+	import { hueFor, volumeOf } from '#lib/types.ts';
+	import { describeRecord, headline } from '#lib/records.ts';
+	import { units } from '#lib/units.svelte.ts';
 
 	let workout = $state<LocalWorkout | null>(null);
 	let missing = $state(false);
@@ -51,6 +53,16 @@
 		return `${day} · ${f(workout.startedAt)} – ${f(workout.finishedAt)}`;
 	});
 
+	/** One headline PR per exercise, most impressive type first. */
+	const prs = $derived.by(() => {
+		if (!workout?.records?.length) return [];
+		const ids = [...new Set(workout.records.map((r) => r.exerciseId))];
+		return ids.map((id) => ({
+			name: workout!.exerciseNames[id] ?? 'Exercise',
+			hit: headline(workout!.records!.filter((r) => r.exerciseId === id))!
+		}));
+	});
+
 	function bestSet(s: LocalWorkout['exercises'][number]['sets']) {
 		const working = s.filter((x) => x.type !== 'WARMUP');
 		const best = working.reduce<(typeof s)[number] | null>(
@@ -60,7 +72,7 @@
 		);
 		if (!best) return '—';
 		return best.weightKg !== null
-			? `${best.weightKg} × ${best.reps ?? 0}`
+			? `${units.show(best.weightKg)} × ${best.reps ?? 0}`
 			: `${best.reps ?? 0} reps`;
 	}
 </script>
@@ -83,13 +95,32 @@
 		</div>
 		<div class="glass p-4">
 			<dt class="eyebrow">Volume</dt>
-			<dd class="mt-1 num text-2xl font-bold">{formatVolume(volumeOf(sets))}</dd>
+			<dd class="mt-1 num text-2xl font-bold">{units.volume(volumeOf(sets))}</dd>
 		</div>
 		<div class="glass p-4">
 			<dt class="eyebrow">Sets</dt>
 			<dd class="mt-1 num text-2xl font-bold">{sets.length}</dd>
 		</div>
 	</dl>
+
+	{#if prs.length}
+		<section class="glass mb-4 overflow-hidden">
+			<p class="flex items-center gap-2 px-4 pt-4 pb-2 font-semibold">
+				<span class="text-ember" aria-hidden="true">★</span>
+				{prs.length} personal record{prs.length > 1 ? 's' : ''}
+			</p>
+			<ul class="divide-y divide-white/[0.07]">
+				{#each prs as pr (pr.name)}
+					<li class="flex items-center justify-between gap-3 px-4 py-3">
+						<span class="min-w-0 truncate text-[0.9375rem]">{pr.name}</span>
+						<span class="shrink-0 num text-sm text-ember"
+							>{describeRecord(pr.hit, (kg, dp) => units.fmt(kg, dp))}</span
+						>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 
 	<section class="glass mb-4 divide-y divide-white/[0.07] overflow-hidden">
 		{#each workout.exercises as ex (ex.id)}

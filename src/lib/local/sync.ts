@@ -7,12 +7,14 @@
  */
 import { db, type OutboxOp } from './db.ts';
 import type { LibraryExercise, PreviousSet, Settings } from '#lib/types.ts';
+import type { Bests } from '#lib/records.ts';
 import { uuidv7 } from '#lib/uuid.ts';
 
 type Bootstrap = {
 	userId: string;
 	exercises: LibraryExercise[];
 	previous: Record<string, PreviousSet[]>;
+	bests: Record<string, Bests>;
 	settings: Settings;
 };
 
@@ -50,7 +52,7 @@ export function bootstrap(): Promise<void> {
 				if (owner && owner.value !== data.userId) await clearLocal();
 
 				const pendingCustom = await pendingCustomExercises();
-				const tables = [db.exercises, db.previous, db.workouts, db.meta];
+				const tables = [db.exercises, db.previous, db.bests, db.workouts, db.meta];
 				await db.transaction('rw', tables, async () => {
 					await db.exercises.clear();
 					await db.exercises.bulkPut([...data.exercises, ...pendingCustom]);
@@ -67,6 +69,14 @@ export function bootstrap(): Promise<void> {
 						Object.entries(data.previous).map(([exerciseId, sets]) => ({ exerciseId, sets }))
 					);
 					await db.previous.bulkPut(keep);
+
+					// Same for bests: a queued workout may have raised them.
+					const keepBests = (await db.bests.bulkGet(localIds)).filter((b) => b !== undefined);
+					await db.bests.clear();
+					await db.bests.bulkPut(
+						Object.entries(data.bests).map(([exerciseId, bests]) => ({ exerciseId, bests }))
+					);
+					await db.bests.bulkPut(keepBests);
 					await db.meta.bulkPut([
 						{ key: 'userId', value: data.userId },
 						{ key: 'settings', value: data.settings },
@@ -179,6 +189,7 @@ export async function clearLocal() {
 		db.outbox.clear(),
 		db.exercises.clear(),
 		db.previous.clear(),
+		db.bests.clear(),
 		db.workouts.clear(),
 		db.meta.clear()
 	]);

@@ -9,9 +9,17 @@
 	import { live } from '#lib/local/live.svelte.ts';
 	import { startSync } from '#lib/local/sync.ts';
 	import { formatDuration } from '#lib/types.ts';
+	import { units } from '#lib/units.svelte.ts';
 	import type { LayoutProps } from './$types';
 
-	let { children }: LayoutProps = $props();
+	let { children, data }: LayoutProps = $props();
+
+	// Set during render (not in an effect) so server-rendered weights use it too.
+	// svelte-ignore state_referenced_locally
+	units.system = data.units;
+	$effect.pre(() => {
+		units.system = data.units;
+	});
 
 	let now = $state(Date.now());
 	const onWorkout = $derived(page.url.pathname.startsWith('/workout'));

@@ -6,6 +6,8 @@
 import { db, getSettings, type LiveExercise, type LiveSet, type LiveWorkout } from './db.ts';
 import { enqueue } from './sync.ts';
 import { uuidv7 } from '#lib/uuid.ts';
+import { detectRecords, mergeBests, type RecordHit } from '#lib/records.ts';
+import { units } from '#lib/units.svelte.ts';
 import type {
 	LibraryExercise,
 	PreviousSet,
@@ -144,11 +146,26 @@ class LiveSession {
 			}))
 		};
 
-		await db.transaction('rw', [db.workouts, db.previous, db.live], async () => {
+		await db.transaction('rw', [db.workouts, db.previous, db.bests, db.live], async () => {
+			// PRs against the cached bests, so the summary can celebrate them offline.
+			const ids = [...new Set(dto.exercises.map((e) => e.exerciseId))];
+			const prior = await db.bests.bulkGet(ids);
+			const records: (RecordHit & { exerciseId: string })[] = [];
+			const updated = ids.map((exerciseId, k) => {
+				const sets = dto.exercises
+					.filter((e) => e.exerciseId === exerciseId)
+					.flatMap((e) => e.sets);
+				const before = prior[k]?.bests;
+				for (const hit of detectRecords(sets, before)) records.push({ ...hit, exerciseId });
+				return { exerciseId, bests: mergeBests(before, sets) };
+			});
+			await db.bests.bulkPut(updated);
+
 			await db.workouts.put({
 				...dto,
 				synced: 0,
-				exerciseNames: Object.fromEntries(exercises.map((e) => [e.exerciseId, e.name]))
+				exerciseNames: Object.fromEntries(exercises.map((e) => [e.exerciseId, e.name])),
+				records
 			});
 			await db.previous.bulkPut(
 				dto.exercises.map((e) => ({
@@ -260,7 +277,7 @@ class LiveSession {
 			const next = ex.sets[j + 1];
 			const nextKg = next ? (next.weightKg ?? next.targetWeightKg) : null;
 			const upNext = next
-				? `next: set ${j + 2}${nextKg !== null ? ` · ${nextKg} kg` : ''}`
+				? `next: set ${j + 2}${nextKg !== null ? ` · ${units.fmt(nextKg)}` : ''}`
 				: w.exercises[i + 1]
 					? `next: ${w.exercises[i + 1].name}`
 					: 'last set done';

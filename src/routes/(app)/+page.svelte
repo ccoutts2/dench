@@ -4,7 +4,8 @@
 	import Sheet from '#lib/components/Sheet.svelte';
 	import { ask } from '#lib/confirm.svelte.ts';
 	import { live } from '#lib/local/live.svelte.ts';
-	import { formatVolume, hueFor, label } from '#lib/types.ts';
+	import { hueFor, label } from '#lib/types.ts';
+	import { units } from '#lib/units.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -156,7 +157,7 @@
 			</div>
 			<div>
 				<dt class="eyebrow">Volume</dt>
-				<dd class="num text-lg font-bold">{formatVolume(data.lastWorkout.volumeKg)}</dd>
+				<dd class="num text-lg font-bold">{units.volume(data.lastWorkout.volumeKg)}</dd>
 			</div>
 			<div>
 				<dt class="eyebrow">Sets</dt>

@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { db } from '#lib/server/db.ts';
 import { assertUsableExercises, InputError } from '#lib/server/library.ts';
+import { recomputeRecords } from '#lib/server/records.ts';
 import { ExerciseInput, SyncInput, WorkoutInput } from '#lib/server/validation.ts';
 import type { RequestHandler } from './$types';
 
@@ -59,7 +60,18 @@ async function upsertExercise(userId: string, payload: unknown) {
 /** Idempotent: deleting something already gone (or never synced) is a no-op. */
 async function deleteWorkout(userId: string, payload: unknown) {
 	const { id } = v.parse(v.object({ id: v.string() }), payload);
+	const touched = await exercisesIn(userId, id);
 	await db.workout.deleteMany({ where: { id, userId } });
+	await recomputeRecords(userId, touched);
+}
+
+/** Exercises currently stored for a workout (before it's replaced or deleted). */
+async function exercisesIn(userId: string, workoutId: string) {
+	const rows = await db.workoutExercise.findMany({
+		where: { workoutId, workout: { userId } },
+		select: { exerciseId: true }
+	});
+	return rows.map((r) => r.exerciseId);
 }
 
 async function saveWorkout(userId: string, payload: unknown) {
@@ -80,6 +92,9 @@ async function saveWorkout(userId: string, payload: unknown) {
 		});
 		if (!t) templateId = null; // template deleted since; keep the workout
 	}
+
+	// An edit can drop an exercise: its records need rebuilding too.
+	const before = await exercisesIn(userId, w.id);
 
 	const fields = {
 		templateId,
@@ -130,4 +145,6 @@ async function saveWorkout(userId: string, payload: unknown) {
 				]
 			: [])
 	]);
+
+	await recomputeRecords(userId, [...before, ...w.exercises.map((e) => e.exerciseId)]);
 }
