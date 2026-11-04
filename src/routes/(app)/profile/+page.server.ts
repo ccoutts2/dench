@@ -2,6 +2,48 @@ import { fail } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { db } from '#lib/server/db.ts';
 import { uuidv7 } from '#lib/uuid.ts';
+import { muscleLoad, type MuscleLoad } from '#lib/muscles.ts';
+import type { Muscle, SetType } from '#lib/types.ts';
+
+const DAY = 86_400_000;
+
+/**
+ * Working sets per muscle, averaged per week, for three windows. Weekly
+ * averages keep "All time" comparable with "This week".
+ */
+async function bodyMap(userId: string) {
+	const rows = await db.workoutExercise.findMany({
+		where: { workout: { userId, finishedAt: { not: null } } },
+		select: {
+			workout: { select: { startedAt: true } },
+			exercise: { select: { primaryMuscle: true, secondaryMuscles: true } },
+			sets: { select: { type: true } }
+		}
+	});
+	const now = Date.now();
+	const first = Math.min(now, ...rows.map((r) => r.workout.startedAt.getTime()));
+	const windows = { week: 7, month: 28, all: Math.max(7, (now - first) / DAY) };
+
+	const out = {} as Record<keyof typeof windows, { load: MuscleLoad; workouts: number }>;
+	for (const [key, days] of Object.entries(windows) as [keyof typeof windows, number][]) {
+		const inRange = rows.filter((r) => now - r.workout.startedAt.getTime() <= days * DAY);
+		const total = muscleLoad(
+			inRange.map((r) => ({
+				primaryMuscle: r.exercise.primaryMuscle as Muscle,
+				secondaryMuscles: r.exercise.secondaryMuscles as Muscle[],
+				sets: r.sets as { type: SetType }[]
+			}))
+		);
+		const weeks = Math.max(1, days / 7);
+		const load: MuscleLoad = {};
+		for (const [m, v] of Object.entries(total)) load[m as keyof MuscleLoad] = v / weeks;
+		out[key] = {
+			load,
+			workouts: new Set(inRange.map((r) => r.workout.startedAt.getTime())).size
+		};
+	}
+	return out;
+}
 import type { Actions, PageServerLoad } from './$types';
 
 const KG_PER_LB = 0.45359237;
@@ -14,7 +56,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		update: {},
 		create: { userId, liftingSince: new Date() }
 	});
-	const [user, workouts, prGroups, firstWorkout] = await Promise.all([
+	const [user, workouts, prGroups, firstWorkout, body] = await Promise.all([
 		// Read fresh: the session cookie caches the name for a few minutes after an edit.
 		db.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } }),
 		db.workout.count({ where: { userId, finishedAt: { not: null } } }),
@@ -24,7 +66,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			where: { userId, finishedAt: { not: null } },
 			orderBy: { startedAt: 'asc' },
 			select: { startedAt: true }
-		})
+		}),
+		bodyMap(userId)
 	]);
 
 	const since = [profile.liftingSince, firstWorkout?.startedAt]
@@ -42,6 +85,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			liftingSince: since?.toISOString() ?? null
 		},
 		name: user.name,
+		body,
 		stats: { workouts, prs: prGroups.length }
 	};
 };

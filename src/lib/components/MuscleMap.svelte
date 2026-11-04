@@ -6,6 +6,8 @@
 	import {
 		LEVEL_LABEL,
 		levelOf,
+		SESSION_SCALE,
+		type Scale,
 		type Level,
 		type MapMuscle,
 		type MuscleLoad
@@ -16,8 +18,9 @@
 		load,
 		/** Exercise view: "Primary / Secondary" instead of set-based levels. */
 		exercise = false,
-		showList = true
-	}: { load: MuscleLoad; exercise?: boolean; showList?: boolean } = $props();
+		showList = true,
+		scale = SESSION_SCALE
+	}: { load: MuscleLoad; exercise?: boolean; showList?: boolean; scale?: Scale } = $props();
 
 	const uid = $props.id();
 
@@ -71,7 +74,7 @@
 
 	function levelFor(m: MapMuscle): Level {
 		const v = load[m];
-		if (!exercise) return levelOf(v);
+		if (!exercise) return levelOf(v, scale);
 		if (!v) return 'none';
 		return v >= 1 ? 'high' : 'mid';
 	}
@@ -88,7 +91,7 @@
 			.filter(([, v]) => v > 0)
 			.sort((a, b) => b[1] - a[1])
 	);
-	const fmtSets = (n: number) => `${+n.toFixed(1)} set${n === 1 ? '' : 's'}`;
+	const fmtSets = (n: number) => `${+n.toFixed(1)} ${scale.unit}`;
 </script>
 
 {#snippet figure(shapes: Partial<Record<MapMuscle, string[]>>, caption: string)}
@@ -171,7 +174,7 @@
 	{#if showList && !exercise && worked.length}
 		<ul class="mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
 			{#each worked as [m, v] (m)}
-				{@const lvl = levelOf(v)}
+				{@const lvl = levelOf(v, scale)}
 				<li class="flex items-baseline justify-between gap-2">
 					<span class="truncate">{label(m)}</span>
 					<span
@@ -179,7 +182,8 @@
 							'shrink-0 num text-xs',
 							lvl === 'high' ? 'text-cyan' : lvl === 'mid' ? 'text-ink-2' : 'text-ink-3'
 						]}
-						title={fmtSets(v)}>{LEVEL_LABEL[lvl as Exclude<Level, 'none'>]}</span
+						>{LEVEL_LABEL[lvl as Exclude<Level, 'none'>]}
+						<span class="text-ink-3">· {+v.toFixed(1)}</span></span
 					>
 				</li>
 			{/each}
@@ -192,7 +196,7 @@
 					.map(([m, v]) =>
 						exercise
 							? `${label(m)}: ${v >= 1 ? 'primary' : 'secondary'}`
-							: `${label(m)}: ${LEVEL_LABEL[levelOf(v) as Exclude<Level, 'none'>]}, ${fmtSets(v)}`
+							: `${label(m)}: ${LEVEL_LABEL[levelOf(v, scale) as Exclude<Level, 'none'>]}, ${fmtSets(v)}`
 					)
 					.join('; ')
 			: 'No muscles worked yet.'}

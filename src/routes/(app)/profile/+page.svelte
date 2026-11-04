@@ -10,6 +10,8 @@
 	import { units } from '#lib/units.svelte.ts';
 	import { onMount } from 'svelte';
 	import InstallGuide from '#lib/components/InstallGuide.svelte';
+	import MuscleMap from '#lib/components/MuscleMap.svelte';
+	import { WEEKLY_SCALE, balanceNotes } from '#lib/muscles.ts';
 	import { PLATE_CHOICES } from '#lib/plates.ts';
 	import {
 		disablePush,
@@ -102,6 +104,17 @@
 
 	const REST_OPTIONS = [0, 30, 45, 60, 90, 120, 150, 180, 240, 300];
 
+	// ─── Body map ─────────────────────────────────────────────────────────────
+
+	const RANGES = [
+		{ key: 'week', label: 'This week' },
+		{ key: 'month', label: '4 weeks' },
+		{ key: 'all', label: 'All time' }
+	] as const;
+	let range = $state<(typeof RANGES)[number]['key']>('month');
+	const body = $derived(data.body[range]);
+	const notes = $derived(balanceNotes(body.load));
+
 	// ─── Rest alerts & install ───────────────────────────────────────────────
 
 	let installOpen = $state(false);
@@ -189,6 +202,48 @@
 		<p class="num text-2xl font-bold text-ember">{data.stats.prs}</p>
 		<p class="mt-1 eyebrow">PRs</p>
 	</div>
+</section>
+
+<section class="glass mb-4 p-4">
+	<div class="mb-4 flex items-center justify-between gap-3">
+		<p class="eyebrow">Body map</p>
+		<span class="text-xs text-ink-3"
+			>{body.workouts} workout{body.workouts === 1 ? '' : 's'} · sets per week</span
+		>
+	</div>
+	<div class="mb-4 flex gap-1 rounded-full bg-white/[0.05] p-1" role="tablist">
+		{#each RANGES as r (r.key)}
+			<button
+				role="tab"
+				aria-selected={range === r.key}
+				class={[
+					'flex-1 rounded-full py-1.5 text-xs font-semibold',
+					range === r.key ? 'bg-white/15 text-ink' : 'text-ink-3'
+				]}
+				onclick={() => (range = r.key)}>{r.label}</button
+			>
+		{/each}
+	</div>
+	{#if body.workouts}
+		<MuscleMap load={body.load} scale={WEEKLY_SCALE} />
+		{#if notes.length}
+			<ul class="mt-4 flex flex-col gap-1.5 border-t border-white/[0.07] pt-3">
+				{#each notes as n (n)}
+					<li class="flex gap-2 text-sm text-ink-2">
+						<span class="text-ember" aria-hidden="true">!</span>{n}
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="mt-4 border-t border-white/[0.07] pt-3 text-sm text-ink-2">
+				Nicely balanced: no big gaps between opposing muscles.
+			</p>
+		{/if}
+	{:else}
+		<p class="py-8 text-center text-sm text-ink-3">
+			No workouts in this period. Finish a workout to see what you've trained.
+		</p>
+	{/if}
 </section>
 
 <section class="glass mb-4 divide-y divide-white/[0.07] overflow-hidden">
