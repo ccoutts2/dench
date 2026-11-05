@@ -1,5 +1,12 @@
 import * as v from 'valibot';
-import { EQUIPMENT, KINDS, MUSCLES, SESSION_TYPES, SET_TYPES } from '#lib/types.ts';
+import {
+	EQUIPMENT,
+	KINDS,
+	MEASUREMENT_KINDS,
+	MUSCLES,
+	SESSION_TYPES,
+	SET_TYPES
+} from '#lib/types.ts';
 
 const uuid = v.pipe(v.string(), v.uuid());
 const name = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80));
@@ -83,12 +90,25 @@ export const WorkoutInput = v.object({
 	)
 });
 
+export const MeasurementInput = v.object({
+	id: uuid,
+	kind: v.picklist(MEASUREMENT_KINDS),
+	value: v.pipe(v.number(), v.minValue(0.1), v.maxValue(1000)),
+	measuredAt: isoDate
+});
+
 export const SyncInput = v.object({
 	ops: v.pipe(
 		v.array(
 			v.object({
 				id: v.string(),
-				type: v.picklist(['workout.save', 'workout.delete', 'exercise.upsert']),
+				type: v.picklist([
+					'workout.save',
+					'workout.delete',
+					'exercise.upsert',
+					'measurement.save',
+					'measurement.delete'
+				]),
 				payload: v.unknown()
 			})
 		),

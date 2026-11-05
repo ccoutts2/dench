@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { page } from '$app/state';
+	import { navigating, page } from '$app/state';
 
 	const tabs = [
 		{
@@ -29,14 +29,24 @@
 		}
 	] as const;
 
-	const isActive = (href: string) =>
-		href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href);
+	// Follow where we're heading, so the highlight moves on tap, not after the load.
+	const path = $derived(navigating.to?.url.pathname ?? page.url.pathname);
+	const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+	const activeIndex = $derived(tabs.findIndex((t) => isActive(t.href)));
 </script>
 
 <nav class="fixed inset-x-0 bottom-0 z-40 px-4 pb-safe" aria-label="Main">
 	<ul
-		class="glass mx-auto flex max-w-md items-stretch justify-around rounded-[1.75rem] p-1.5 glass-bar [view-transition-name:tabbar]"
+		class="glass relative mx-auto flex max-w-md items-stretch justify-around rounded-[1.75rem] p-1.5 glass-bar [view-transition-name:tabbar]"
 	>
+		<!-- One highlight that glides to the active tab (a little spring at the end). -->
+		{#if activeIndex >= 0}
+			<span
+				class="pointer-events-none absolute top-1.5 bottom-1.5 left-1.5 w-[calc((100%-0.75rem)/4)] rounded-[1.25rem] bg-white/10 shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] transition-transform duration-[460ms] ease-[cubic-bezier(0.34,1.36,0.5,1)]"
+				style:transform="translateX({activeIndex * 100}%)"
+				aria-hidden="true"
+			></span>
+		{/if}
 		{#each tabs as tab (tab.href)}
 			{@const active = isActive(tab.href)}
 			<li class="flex-1">
@@ -44,13 +54,16 @@
 					href={resolve(tab.route)}
 					aria-current={active ? 'page' : undefined}
 					class={[
-						'flex flex-col items-center gap-1 rounded-[1.25rem] py-2 text-[0.6875rem] font-medium transition-colors',
-						active ? 'bg-white/10 text-ink' : 'text-ink-3 hover:text-ink-2'
+						'relative flex flex-col items-center gap-1 rounded-[1.25rem] py-2 text-[0.6875rem] font-medium transition-colors duration-300',
+						active ? 'text-ink' : 'text-ink-3 hover:text-ink-2'
 					]}
 				>
 					<svg
 						viewBox="0 0 24 24"
-						class={['size-6', active && 'drop-shadow-[0_0_8px_rgb(62_230_255/0.55)]']}
+						class={[
+							'size-6 transition-transform duration-300',
+							active && 'scale-110 drop-shadow-[0_0_8px_rgb(62_230_255/0.55)]'
+						]}
 						fill="none"
 						stroke={active ? 'url(#tab-grad)' : 'currentColor'}
 						stroke-width="1.8"

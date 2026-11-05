@@ -1,13 +1,29 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { db } from '#lib/local/db.ts';
+	import { deleteMeasurement, onSyncChange, saveMeasurement } from '#lib/local/sync.ts';
+	import { uuidv7 } from '#lib/uuid.ts';
 	import LineChart from '#lib/components/LineChart.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
 	import { units } from '#lib/units.svelte.ts';
-	import { MEASUREMENT_KINDS, label, type MeasurementKind } from '#lib/types.ts';
-	import type { PageProps } from './$types';
+	import {
+		MEASUREMENT_KINDS,
+		label,
+		type MeasurementDTO,
+		type MeasurementKind
+	} from '#lib/types.ts';
 
-	let { data, form }: PageProps = $props();
+	// Read from the phone so this works with no signal; sync keeps it current.
+	let measurements = $state<MeasurementDTO[]>([]);
+	async function reload() {
+		measurements = await db.measurements.orderBy('measuredAt').toArray();
+	}
+	onMount(() => {
+		void reload();
+		return onSyncChange(() => void reload());
+	});
+	let error = $state<string | null>(null);
 
 	const unitFor = (k: MeasurementKind) =>
 		k === 'BODYWEIGHT' ? units.label : k === 'BODY_FAT' ? '%' : 'cm';
@@ -17,8 +33,8 @@
 		`${+shown(k, v).toFixed(1)}${unitFor(k) === '%' ? '%' : ` ${unitFor(k)}`}`;
 
 	const byKind = $derived.by(() => {
-		const map: Partial<Record<MeasurementKind, typeof data.measurements>> = {};
-		for (const m of data.measurements) (map[m.kind] ??= []).push(m);
+		const map: Partial<Record<MeasurementKind, MeasurementDTO[]>> = {};
+		for (const m of measurements) (map[m.kind] ??= []).push(m);
 		return map;
 	});
 
@@ -43,6 +59,36 @@
 	const points = $derived(
 		openKind ? entries.map((e) => ({ x: e.measuredAt, y: shown(openKind!, e.value) })) : []
 	);
+
+	async function add(e: SubmitEvent) {
+		e.preventDefault();
+		error = null;
+		const n = Number(value.replace(',', '.'));
+		if (!openKind || !Number.isFinite(n) || n <= 0 || n > 1000) {
+			error = 'Enter a number.';
+			return;
+		}
+		if (openKind === 'BODY_FAT' && n > 75) {
+			error = 'Body fat is a percentage.';
+			return;
+		}
+		saving = true;
+		await saveMeasurement({
+			id: uuidv7(),
+			kind: openKind,
+			value: openKind === 'BODYWEIGHT' ? units.toKg(n)! : Math.round(n * 100) / 100,
+			// Noon on the chosen day: stays on that date in any timezone.
+			measuredAt: new Date(`${date}T12:00:00Z`).toISOString()
+		});
+		await reload();
+		value = '';
+		saving = false;
+	}
+
+	async function remove(id: string) {
+		await deleteMeasurement(id);
+		await reload();
+	}
 
 	const day = (iso: string) =>
 		new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -104,20 +150,7 @@
 			</div>
 		{/if}
 
-		<form
-			method="POST"
-			action="?/add"
-			class="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-2 pt-2"
-			use:enhance={() => {
-				saving = true;
-				return async ({ result, update }) => {
-					await update({ reset: false });
-					saving = false;
-					if (result.type === 'success') value = '';
-				};
-			}}
-		>
-			<input type="hidden" name="kind" value={openKind} />
+		<form class="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-2 pt-2" onsubmit={add}>
 			<label class="flex min-w-0 flex-col gap-1.5">
 				<span class="eyebrow">Value ({unitFor(openKind)})</span>
 				<input class="field num" name="value" inputmode="decimal" bind:value required />
@@ -135,7 +168,7 @@
 			</label>
 			<button class="btn-primary col-span-2 mt-1" disabled={saving || !value.trim()}>Add</button>
 		</form>
-		{#if form?.error}<p class="mt-2 text-sm text-ember">{form.error}</p>{/if}
+		{#if error}<p class="mt-2 text-sm text-ember">{error}</p>{/if}
 
 		{#if entries.length}
 			<ul class="mt-5 divide-y divide-white/[0.07]">
@@ -144,13 +177,11 @@
 						<span class="text-sm text-ink-2">{day(e.measuredAt)}</span>
 						<span class="flex items-center gap-3">
 							<span class="num text-sm">{fmt(openKind, e.value)}</span>
-							<form method="POST" action="?/delete" use:enhance>
-								<input type="hidden" name="id" value={e.id} />
-								<button
-									class="text-xs font-semibold text-ember"
-									aria-label="Delete {day(e.measuredAt)}">Delete</button
-								>
-							</form>
+							<button
+								class="text-xs font-semibold text-ember"
+								aria-label="Delete {day(e.measuredAt)}"
+								onclick={() => remove(e.id)}>Delete</button
+							>
 						</span>
 					</li>
 				{/each}

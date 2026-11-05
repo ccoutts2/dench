@@ -12,6 +12,8 @@
 	import { startSync } from '#lib/local/sync.ts';
 	import { formatDuration } from '#lib/types.ts';
 	import { units } from '#lib/units.svelte.ts';
+	import { afterNavigate } from '$app/navigation';
+	import { isTabSwitch } from '#lib/nav.ts';
 	import type { LayoutProps } from './$types';
 
 	let { children, data }: LayoutProps = $props();
@@ -24,6 +26,20 @@
 	});
 
 	let now = $state(Date.now());
+	let main: HTMLElement;
+
+	// Tab switches: the new screen rises in gently while the tab highlight glides.
+	afterNavigate(({ from, to }) => {
+		if (!isTabSwitch(from?.url.pathname, to?.url.pathname)) return;
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		main?.animate(
+			[
+				{ opacity: 0, transform: 'translateY(8px)' },
+				{ opacity: 1, transform: 'none' }
+			],
+			{ duration: 260, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }
+		);
+	});
 	const onWorkout = $derived(page.url.pathname.startsWith('/workout'));
 	/** Full-screen editors bring their own navigation (Cancel / Save / Finish). */
 	const fullScreen = $derived(onWorkout || page.url.pathname.startsWith('/templates/'));
@@ -56,16 +72,21 @@
 		navigator.serviceWorker?.ready.then((reg) =>
 			reg.active?.postMessage({
 				type: 'warm',
-				urls: ['/', '/workout', '/history', '/exercises', '/profile'].flatMap((p) => [
-					p,
-					`${p === '/' ? '' : p}/__data.json`
-				])
+				urls: [
+					'/',
+					'/workout',
+					'/history',
+					'/exercises',
+					'/profile',
+					'/profile/measurements'
+				].flatMap((p) => [p, `${p === '/' ? '' : p}/__data.json`])
 			})
 		);
 	}
 </script>
 
 <main
+	bind:this={main}
 	class={['mx-auto min-h-dvh max-w-md px-4', fullScreen ? 'pb-28' : showBar ? 'pb-48' : 'pb-32']}
 >
 	{@render children()}

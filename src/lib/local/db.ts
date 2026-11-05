@@ -10,6 +10,7 @@ import type { Bests, RecordHit } from '#lib/records.ts';
 import { DEFAULT_PLATES_KG } from '#lib/plates.ts';
 import type {
 	LibraryExercise,
+	MeasurementDTO,
 	PreviousSet,
 	SessionType,
 	SetType,
@@ -54,6 +55,8 @@ export type LiveWorkout = {
 export type OutboxOp =
 	| { id: string; type: 'workout.save'; payload: WorkoutDTO; createdAt: number }
 	| { id: string; type: 'workout.delete'; payload: { id: string }; createdAt: number }
+	| { id: string; type: 'measurement.save'; payload: MeasurementDTO; createdAt: number }
+	| { id: string; type: 'measurement.delete'; payload: { id: string }; createdAt: number }
 	| {
 			id: string;
 			type: 'exercise.upsert';
@@ -78,6 +81,7 @@ class DenchDB extends Dexie {
 	workouts!: EntityTable<LocalWorkout, 'id'>;
 	meta!: EntityTable<{ key: string; value: unknown }, 'key'>;
 	bests!: EntityTable<{ exerciseId: string; bests: Bests }, 'exerciseId'>;
+	measurements!: EntityTable<MeasurementDTO, 'id'>;
 
 	constructor() {
 		super('dench');
@@ -90,6 +94,7 @@ class DenchDB extends Dexie {
 			meta: 'key'
 		});
 		this.version(2).stores({ bests: 'exerciseId' });
+		this.version(3).stores({ measurements: 'id, kind, measuredAt' });
 	}
 }
 

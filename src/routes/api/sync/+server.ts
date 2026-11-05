@@ -3,7 +3,13 @@ import * as v from 'valibot';
 import { db } from '#lib/server/db.ts';
 import { assertUsableExercises, InputError } from '#lib/server/library.ts';
 import { recomputeRecords } from '#lib/server/records.ts';
-import { ExerciseInput, SyncInput, WorkoutInput } from '#lib/server/validation.ts';
+import { syncProfileBodyweight } from '#lib/server/measurements.ts';
+import {
+	ExerciseInput,
+	MeasurementInput,
+	SyncInput,
+	WorkoutInput
+} from '#lib/server/validation.ts';
 import type { RequestHandler } from './$types';
 
 /**
@@ -26,6 +32,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		try {
 			if (op.type === 'exercise.upsert') await upsertExercise(userId, op.payload);
 			else if (op.type === 'workout.delete') await deleteWorkout(userId, op.payload);
+			else if (op.type === 'measurement.save') await saveMeasurement(userId, op.payload);
+			else if (op.type === 'measurement.delete') await deleteMeasurement(userId, op.payload);
 			else await saveWorkout(userId, op.payload);
 			done.push(op.id);
 		} catch (err) {
@@ -39,6 +47,36 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 	return json({ done, rejected });
 };
+
+async function saveMeasurement(userId: string, payload: unknown) {
+	const m = v.parse(MeasurementInput, payload);
+	if (m.kind === 'BODY_FAT' && m.value > 75) throw new InputError('Body fat is a percentage');
+	const existing = await db.measurement.findUnique({
+		where: { id: m.id },
+		select: { userId: true }
+	});
+	if (existing && existing.userId !== userId) throw new InputError('Not your measurement');
+	const data = {
+		kind: m.kind,
+		value: Math.round(m.value * 100) / 100,
+		measuredAt: new Date(m.measuredAt)
+	};
+	await db.measurement.upsert({
+		where: { id: m.id },
+		create: { id: m.id, userId, ...data },
+		update: data
+	});
+	if (m.kind === 'BODYWEIGHT') await syncProfileBodyweight(userId);
+}
+
+/** Idempotent, like workout deletes. */
+async function deleteMeasurement(userId: string, payload: unknown) {
+	const { id } = v.parse(v.object({ id: v.string() }), payload);
+	const gone = await db.measurement.findFirst({ where: { id, userId }, select: { kind: true } });
+	if (!gone) return;
+	await db.measurement.delete({ where: { id } });
+	if (gone.kind === 'BODYWEIGHT') await syncProfileBodyweight(userId);
+}
 
 async function upsertExercise(userId: string, payload: unknown) {
 	const e = v.parse(ExerciseInput, payload);

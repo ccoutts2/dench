@@ -67,6 +67,14 @@ export const MEASUREMENT_KINDS = [
 ] as const;
 export type MeasurementKind = (typeof MEASUREMENT_KINDS)[number];
 
+/** kg for bodyweight, % for body fat, cm for everything else. */
+export type MeasurementDTO = {
+	id: string;
+	kind: MeasurementKind;
+	value: number;
+	measuredAt: string;
+};
+
 export type LibraryExercise = {
 	id: string;
 	name: string;

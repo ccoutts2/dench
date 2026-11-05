@@ -6,7 +6,7 @@
  *  - flush(): sends queued changes in batches; anything unsent waits for signal.
  */
 import { db, type OutboxOp } from './db.ts';
-import type { LibraryExercise, PreviousSet, Settings } from '#lib/types.ts';
+import type { LibraryExercise, MeasurementDTO, PreviousSet, Settings } from '#lib/types.ts';
 import type { Bests } from '#lib/records.ts';
 import { uuidv7 } from '#lib/uuid.ts';
 
@@ -15,6 +15,7 @@ type Bootstrap = {
 	exercises: LibraryExercise[];
 	previous: Record<string, PreviousSet[]>;
 	bests: Record<string, Bests>;
+	measurements: MeasurementDTO[];
 	settings: Settings;
 };
 
@@ -52,7 +53,15 @@ export function bootstrap(): Promise<void> {
 				if (owner && owner.value !== data.userId) await clearLocal();
 
 				const pendingCustom = await pendingCustomExercises();
-				const tables = [db.exercises, db.previous, db.bests, db.workouts, db.meta];
+				const tables = [
+					db.exercises,
+					db.previous,
+					db.bests,
+					db.measurements,
+					db.workouts,
+					db.meta,
+					db.outbox
+				];
 				await db.transaction('rw', tables, async () => {
 					await db.exercises.clear();
 					await db.exercises.bulkPut([...data.exercises, ...pendingCustom]);
@@ -77,6 +86,14 @@ export function bootstrap(): Promise<void> {
 						Object.entries(data.bests).map(([exerciseId, bests]) => ({ exerciseId, bests }))
 					);
 					await db.bests.bulkPut(keepBests);
+
+					// Measurements: the server's list, then changes still in the outbox on top.
+					await db.measurements.clear();
+					await db.measurements.bulkPut(data.measurements);
+					for (const op of await db.outbox.orderBy('createdAt').toArray()) {
+						if (op.type === 'measurement.save') await db.measurements.put(op.payload);
+						if (op.type === 'measurement.delete') await db.measurements.delete(op.payload.id);
+					}
 					await db.meta.bulkPut([
 						{ key: 'userId', value: data.userId },
 						{ key: 'settings', value: data.settings },
@@ -172,6 +189,21 @@ export async function deleteWorkout(id: string) {
 	}
 }
 
+/** Add or change a measurement: saved on the phone now, synced when there's signal. */
+export async function saveMeasurement(m: MeasurementDTO) {
+	await db.measurements.put(m);
+	await enqueue('measurement.save', m);
+}
+
+export async function deleteMeasurement(id: string) {
+	await db.transaction('rw', [db.outbox, db.measurements], async () => {
+		// A save that never left the phone can simply be dropped.
+		await db.outbox.filter((op) => op.type === 'measurement.save' && op.payload.id === id).delete();
+		await db.measurements.delete(id);
+	});
+	await enqueue('measurement.delete', { id });
+}
+
 /** Workouts deleted on this phone whose delete hasn't reached the server yet. */
 export async function pendingDeletes(): Promise<Set<string>> {
 	const ops = await db.outbox.filter((op) => op.type === 'workout.delete').toArray();
@@ -190,6 +222,7 @@ export async function clearLocal() {
 		db.exercises.clear(),
 		db.previous.clear(),
 		db.bests.clear(),
+		db.measurements.clear(),
 		db.workouts.clear(),
 		db.meta.clear()
 	]);
