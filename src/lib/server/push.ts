@@ -20,7 +20,7 @@ function setVapid() {
 /** Send to every device the user enabled. Dead subscriptions are removed. */
 export async function sendToUser(
 	userId: string,
-	payload: { title: string; body: string; tag: string }
+	payload: { title: string; body: string; tag: string; endsAt?: number }
 ) {
 	if (!pushConfigured) return;
 	setVapid();
@@ -31,7 +31,9 @@ export async function sendToUser(
 				await webpush.sendNotification(
 					{ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
 					JSON.stringify(payload),
-					{ TTL: 60, urgency: 'high' }
+					// A rest alert is useless late: let the push service drop it after 10 s
+					// rather than deliver it when the phone next has signal.
+					{ TTL: 10, urgency: 'high' }
 				);
 			} catch (err) {
 				const status = (err as { statusCode?: number }).statusCode;
@@ -92,7 +94,12 @@ export function runAlert(origin: string, userId: string, token: string) {
 			alert = await db.restAlert.findUnique({ where: { userId } });
 			if (!alert || alert.token !== token) return; // skipped or changed meanwhile
 			await db.restAlert.delete({ where: { userId } }).catch(() => {});
-			await sendToUser(userId, { title: alert.title, body: alert.body, tag: 'rest' });
+			await sendToUser(userId, {
+				title: alert.title,
+				body: alert.body,
+				tag: 'rest',
+				endsAt: alert.endsAt.getTime()
+			});
 		})()
 	);
 }

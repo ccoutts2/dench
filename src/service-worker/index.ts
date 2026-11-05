@@ -152,20 +152,32 @@ self.addEventListener('message', (event) => {
 // ─── Rest-over push ───────────────────────────────────────────────────────────
 
 self.addEventListener('push', (event) => {
-	const data = (event.data?.json() ?? {}) as { title?: string; body?: string; tag?: string };
+	const data = (event.data?.json() ?? {}) as {
+		title?: string;
+		body?: string;
+		tag?: string;
+		endsAt?: number;
+	};
 	event.waitUntil(
 		(async () => {
 			// iOS requires every push to show a notification. If the app is on screen
 			// it has already chimed, so keep this one quiet.
 			const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
 			const visible = windows.some((c) => (c as WindowClient).visibilityState === 'visible');
+			const late = !!data.endsAt && Date.now() - data.endsAt > 30_000;
 			await self.registration.showNotification(data.title ?? 'Rest over', {
 				body: data.body ?? 'Time for your next set.',
 				tag: data.tag ?? 'rest',
 				icon: '/icons/icon-192.png',
 				badge: '/icons/icon-192.png',
-				silent: visible
+				silent: visible || late
 			});
+			// iOS insists every push shows something, so a stale one is shown
+			// silently and cleared at once instead of buzzing long after rest ended.
+			if (late) {
+				for (const n of await self.registration.getNotifications({ tag: data.tag ?? 'rest' }))
+					n.close();
+			}
 		})()
 	);
 });
