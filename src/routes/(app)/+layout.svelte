@@ -7,6 +7,7 @@
 	import RestTimer from '#lib/components/RestTimer.svelte';
 	import ConfirmSheet from '#lib/components/ConfirmSheet.svelte';
 	import InstallGuide from '#lib/components/InstallGuide.svelte';
+	import WhatsNew from '#lib/components/WhatsNew.svelte';
 	import { isIos, isStandalone } from '#lib/push.ts';
 	import { live } from '#lib/local/live.svelte.ts';
 	import { startSync } from '#lib/local/sync.ts';
@@ -126,3 +127,4 @@
 
 <ConfirmSheet />
 <InstallGuide bind:open={installOpen} />
+<WhatsNew userCreatedAt={data.user.createdAt} blocked={installOpen} />

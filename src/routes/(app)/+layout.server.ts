@@ -13,7 +13,12 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 		select: { units: true }
 	});
 	return {
-		user: { id: locals.user.id, name: locals.user.name, email: locals.user.email },
+		user: {
+			id: locals.user.id,
+			name: locals.user.name,
+			email: locals.user.email,
+			createdAt: new Date(locals.user.createdAt).toISOString()
+		},
 		units: profile?.units ?? ('KG' as const)
 	};
 };
