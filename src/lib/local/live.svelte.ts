@@ -7,6 +7,7 @@ import { db, getSettings, type LiveExercise, type LiveSet, type LiveWorkout } fr
 import { enqueue } from './sync.ts';
 import { uuidv7 } from '#lib/uuid.ts';
 import { detectRecords, mergeBests, type RecordHit } from '#lib/records.ts';
+import { suggest, type Suggestion } from '#lib/progression.ts';
 import { units } from '#lib/units.svelte.ts';
 import { scheduleRestAlert } from '#lib/push.ts';
 import type {
@@ -18,7 +19,7 @@ import type {
 	WorkoutDTO
 } from '#lib/types.ts';
 
-export type TemplateStart = Pick<TemplateDTO, 'id' | 'name' | 'sessionType'> & {
+export type TemplateStart = Pick<TemplateDTO, 'id' | 'name' | 'sessionType' | 'progression'> & {
 	exercises: (TemplateDTO['exercises'][number] & { name: string })[];
 };
 
@@ -31,6 +32,30 @@ const blankSet = (): LiveSet => ({
 	targetReps: null,
 	completedAt: null
 });
+
+type TemplateExercise = TemplateStart['exercises'][number];
+const setsOf = (e: TemplateExercise) =>
+	e.sets.length ? e.sets : [{ type: 'NORMAL' as const, targetWeightKg: null, targetReps: null }];
+
+/** One suggestion (or null) per template exercise, from cached history only. */
+async function suggestionsFor(t: TemplateStart): Promise<(Suggestion | null)[]> {
+	const ids = t.exercises.map((e) => e.exerciseId);
+	const [library, previous, settings] = await Promise.all([
+		db.exercises.bulkGet(ids),
+		db.previous.bulkGet(ids),
+		getSettings()
+	]);
+	const ctx = {
+		system: settings.units,
+		barWeightKg: settings.barWeightKg,
+		plateSetKg: settings.plateSetKg,
+		fmt: (kg: number) => units.fmt(kg)
+	};
+	return t.exercises.map((e, k) => {
+		const ex = library[k];
+		return ex ? suggest(setsOf(e), previous[k]?.sets, ex, ctx) : null;
+	});
+}
 
 class LiveSession {
 	workout = $state<LiveWorkout | null>(null);
@@ -78,6 +103,7 @@ class LiveSession {
 	}
 
 	async startFromTemplate(t: TemplateStart) {
+		const suggestions = t.progression ? await suggestionsFor(t) : [];
 		this.workout = {
 			key: 'current',
 			id: uuidv7(),
@@ -86,23 +112,25 @@ class LiveSession {
 			sessionType: t.sessionType,
 			notes: null,
 			startedAt: new Date().toISOString(),
-			exercises: t.exercises.map((e) => ({
-				id: uuidv7(),
-				exerciseId: e.exerciseId,
-				name: e.name,
-				restSec: e.restSec,
-				notes: e.notes,
-				supersetGroup: e.supersetGroup,
-				sets: (e.sets.length
-					? e.sets
-					: [{ type: 'NORMAL' as const, targetWeightKg: null, targetReps: null }]
-				).map((s) => ({
-					...blankSet(),
-					type: s.type,
-					targetWeightKg: s.targetWeightKg,
-					targetReps: s.targetReps
-				}))
-			})),
+			exercises: t.exercises.map((e, k) => {
+				const tip = suggestions[k];
+				return {
+					id: uuidv7(),
+					exerciseId: e.exerciseId,
+					name: e.name,
+					restSec: e.restSec,
+					notes: e.notes,
+					supersetGroup: e.supersetGroup,
+					// The suggestion beats the template's own targets, which go stale.
+					sets: setsOf(e).map((s, j) => ({
+						...blankSet(),
+						type: s.type,
+						targetWeightKg: tip ? tip.sets[j].targetWeightKg : s.targetWeightKg,
+						targetReps: tip ? tip.sets[j].targetReps : s.targetReps
+					})),
+					progression: tip && { direction: tip.direction, note: tip.note }
+				};
+			}),
 			rest: null
 		};
 		await this.persist();

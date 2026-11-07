@@ -36,7 +36,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		if (!f) folderId = null;
 	}
 
-	const fields = { name: t.name, sessionType: t.sessionType, notes: t.notes, folderId };
+	const fields = {
+		name: t.name,
+		sessionType: t.sessionType,
+		notes: t.notes,
+		progression: t.progression,
+		folderId
+	};
 
 	await db.$transaction([
 		db.templateExercise.deleteMany({ where: { templateId: t.id, template: { userId } } }),

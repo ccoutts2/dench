@@ -15,6 +15,21 @@ export type Release = {
 
 export const RELEASES: Release[] = [
 	{
+		id: '2026-11-07',
+		date: '2026-11-07T12:00:00Z',
+		title: 'Know what to lift next',
+		items: [
+			{
+				title: 'Weight suggestions',
+				text: 'Switch on “Suggest next weights” in any template. Hit all your reps and Dench bumps the weight next time. Fall short and you go again at the same weight.'
+			},
+			{
+				title: 'Works offline',
+				text: 'Suggestions come from your last session on your phone, so they show up even without signal.'
+			}
+		]
+	},
+	{
 		id: '2026-11-05',
 		date: '2026-11-05T12:00:00Z',
 		title: 'Fresh in Dench',

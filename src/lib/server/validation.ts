@@ -32,6 +32,7 @@ export const TemplateInput = v.object({
 	folderId: v.nullable(v.string()),
 	/** Create a new folder with this name instead of using folderId. */
 	newFolderName: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(60)))),
+	progression: v.optional(v.boolean(), false),
 	notes,
 	exercises: v.pipe(
 		v.array(

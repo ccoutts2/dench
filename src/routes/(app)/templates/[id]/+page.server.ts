@@ -32,6 +32,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			sessionType: t.sessionType,
 			folderId: t.folderId,
 			notes: t.notes,
+			progression: t.progression,
 			exercises: t.exercises.map((e) => ({
 				exerciseId: e.exerciseId,
 				name: e.exercise.name,

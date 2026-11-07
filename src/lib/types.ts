@@ -104,6 +104,8 @@ export type TemplateDTO = {
 	sessionType: SessionType;
 	folderId: string | null;
 	notes: string | null;
+	/** Suggest weight/reps from last session (double progression). */
+	progression: boolean;
 	exercises: {
 		exerciseId: string;
 		restSec: number | null;

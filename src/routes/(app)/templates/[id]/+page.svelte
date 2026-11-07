@@ -26,6 +26,7 @@
 	let name = $state(t?.name ?? '');
 	let sessionType = $state<TemplateDTO['sessionType']>(t?.sessionType ?? 'OTHER');
 	let folderChoice = $state<string>(t?.folderId ?? '');
+	let progression = $state(t?.progression ?? false);
 	let newFolderName = $state('');
 	let rows = $state<Row[]>(
 		(t?.exercises ?? []).map((e) => ({ ...e, key: uuidv7(), sets: e.sets.map((s) => ({ ...s })) }))
@@ -103,6 +104,7 @@
 			id,
 			name: name.trim(),
 			sessionType,
+			progression,
 			folderId: folderChoice && folderChoice !== '__new' ? folderChoice : null,
 			newFolderName: folderChoice === '__new' ? newFolderName.trim() : null,
 			notes: null,
@@ -194,6 +196,36 @@
 {#if folderChoice === '__new'}
 	<input class="field mb-4" placeholder="Folder name, e.g. PPL 6-day" bind:value={newFolderName} />
 {/if}
+
+<div class="glass mb-4 flex items-start gap-4 p-4">
+	<div class="min-w-0 flex-1">
+		<p id="progression-label" class="font-semibold">Suggest next weights</p>
+		<p id="progression-desc" class="mt-1 text-sm text-ink-2">
+			Uses double progression. Hit your target reps on every set and the weight goes up next time.
+			Miss any and you go again at the same weight. Works with one rep target per set, not ranges
+			like 8–12.
+		</p>
+	</div>
+	<button
+		type="button"
+		role="switch"
+		aria-checked={progression}
+		aria-labelledby="progression-label"
+		aria-describedby="progression-desc"
+		class={[
+			'relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition-colors duration-200',
+			progression ? 'bg-linear-to-r from-violet to-cyan' : 'bg-white/10'
+		]}
+		onclick={() => (progression = !progression)}
+	>
+		<span
+			class={[
+				'absolute top-1 left-1 size-5 rounded-full bg-white shadow transition-transform duration-200',
+				progression && 'translate-x-5'
+			]}
+		></span>
+	</button>
+</div>
 
 {#if error}
 	<p class="mb-4 rounded-xl bg-ember/15 px-3 py-2 text-sm text-ember" role="alert">{error}</p>

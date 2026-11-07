@@ -44,6 +44,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			id: t.id,
 			name: t.name,
 			sessionType: t.sessionType,
+			progression: t.progression,
 			folderId: t.folderId,
 			lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
 			exercises: t.exercises.map((e) => ({

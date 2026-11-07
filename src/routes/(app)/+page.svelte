@@ -238,6 +238,9 @@
 		<p class="mb-3 eyebrow">
 			{label(preview.sessionType)} session, {preview.exercises.length} exercises
 		</p>
+		{#if preview.progression}
+			<p class="-mt-1 mb-3 text-xs font-medium text-cyan">↑ Suggests your next weights</p>
+		{/if}
 		<ul class="mb-2 flex flex-col">
 			{#each preview.exercises as e, i (i)}
 				<li class="flex justify-between gap-3 border-b border-white/[0.06] py-2.5 text-sm">

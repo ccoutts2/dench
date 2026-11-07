@@ -267,6 +267,17 @@
 						>
 					</div>
 				</div>
+				{#if ex.progression}
+					<p
+						class={[
+							'-mt-2 mb-3 flex items-center gap-1.5 text-xs font-medium',
+							ex.progression.direction === 'up' ? 'text-cyan' : 'text-ink-2'
+						]}
+					>
+						<span aria-hidden="true">{ex.progression.direction === 'up' ? '↑' : '→'}</span>
+						{ex.progression.note}
+					</p>
+				{/if}
 				{#if ex.notes}
 					<p class="-mt-2 mb-3 text-sm text-ink-2 italic">{ex.notes}</p>
 				{/if}

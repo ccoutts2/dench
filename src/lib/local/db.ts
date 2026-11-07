@@ -38,6 +38,8 @@ export type LiveExercise = {
 	/** Adjacent exercises with the same group form a superset (absent on older saves). */
 	supersetGroup?: string | null;
 	sets: LiveSet[];
+	/** Why the targets were suggested, when the template has progression on. */
+	progression?: { direction: 'up' | 'hold'; note: string } | null;
 };
 
 export type LiveWorkout = {

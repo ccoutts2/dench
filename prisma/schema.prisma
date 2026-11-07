@@ -211,6 +211,8 @@ model Template {
   name        String
   sessionType SessionType        @default(OTHER)
   notes       String?
+  /// Suggest next session's weight/reps (double progression). Opt-in per template.
+  progression Boolean            @default(false)
   position    Int                @default(0)
   lastUsedAt  DateTime?
   createdAt   DateTime           @default(now())
